@@ -1,0 +1,176 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =================================================================
+ * FT exact palette
+ * Page background, primary/secondary text, FT dark red accent, warm
+ * gray rule, dark strip, white panels.
+ * ================================================================= */
+
+:root {
+  --bone:        #FFF1E5;  /* FT salmon page background */
+  --ink:         #33302E;  /* FT warm near-black */
+  --ink-soft:    #4A4642;  /* slight tonal step-down for emphasis */
+  --ink-muted:   #66605A;  /* FT secondary text */
+  --rule:        #E9E1D9;  /* FT warm gray rule */
+  --accent:      #990F3D;  /* FT dark red */
+  --dark-strip:  #1A1817;  /* FT top strip */
+  --white:       #FFFFFF;  /* content panels */
+  --negative:    #B3231C;  /* FT alert red, slightly different from accent */
+  --positive:    #178C3D;  /* FT positive green */
+}
+
+html,
+body {
+  background: var(--bone);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* UI surfaces (nav, buttons, inputs, labels) use Inter — keeps numerals
+ * legible at small sizes without tripping the FT serif body cadence. */
+.ui-sans {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+}
+
+/* === Headlines / display === */
+.font-display {
+  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Section rules — clean 1px warm-gray, never dotted, never thick === */
+.hr-rule {
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+/* === FT-style category label ===
+ * uppercase 11–12px, 0.05em tracking, in the FT dark red. */
+.cat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  font-weight: 600;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+.cat-label-muted {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-muted);
+  font-weight: 500;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* === Article body — 18px reading column for marketing prose === */
+.article-body {
+  font-size: 18px;
+  line-height: 1.7;
+  max-width: 680px;
+}
+
+/* === Buttons (2px radius — only place radius is allowed) === */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: #fff;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  border-radius: 2px;
+  border: 1px solid var(--accent);
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.btn-primary:hover { background: #7E0C32; border-color: #7E0C32; }
+.btn-primary:disabled { opacity: 0.55; }
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--ink);
+  padding: 10px 18px;
+  font-size: 14px;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  transition: background-color 120ms ease;
+}
+.btn-secondary:hover { background: var(--rule); }
+
+.btn-dark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ink);
+  color: var(--white);
+  padding: 10px 18px;
+  font-size: 14px;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  border: 1px solid var(--ink);
+  border-radius: 2px;
+  transition: background-color 120ms ease;
+}
+.btn-dark:hover { background: var(--ink-soft); }
+
+/* === Form inputs (2px radius) === */
+.field-input {
+  width: 100%;
+  border: 1px solid var(--rule);
+  background: var(--white);
+  border-radius: 2px;
+  padding: 10px 12px;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--ink);
+}
+.field-input:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+
+/* === Skeleton — text-shaped, never spinners === */
+.skeleton {
+  display: inline-block;
+  background: var(--rule);
+  border-radius: 0;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+/* === Focus ring === */
+*:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* === Hide scrollbar utility for horizontal pill nav === */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
