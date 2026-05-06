@@ -15,7 +15,6 @@ import { createClient } from "@/lib/supabase/client";
 export const API_BASE: string =
   process.env.NEXT_PUBLIC_API_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "https://api.startupspend.cloud" ??
   "https://api.startupspend.cloud";
 
 async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
