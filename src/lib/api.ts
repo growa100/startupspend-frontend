@@ -1,6 +1,22 @@
 import { createClient } from "@/lib/supabase/client";
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+/**
+ * Resolved at module load. Order:
+ *   1. NEXT_PUBLIC_API_URL          — current prod env-var name on Vercel.
+ *   2. NEXT_PUBLIC_API_BASE_URL     — legacy name, kept for any old preview
+ *                                     deploys still wired this way.
+ *   3. https://api.startupspend.cloud  — production fallback. NEVER falls
+ *                                     back to localhost: a Vercel-hosted
+ *                                     page targeting localhost just hangs.
+ *
+ * Each access is a literal `process.env.NEXT_PUBLIC_*` so Next's bundler
+ * can statically inline the value at build time.
+ */
+export const API_BASE: string =
+  process.env.NEXT_PUBLIC_API_URL ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  "https://api.startupspend.cloud" ??
+  "https://api.startupspend.cloud";
 
 async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const supabase = createClient();
@@ -13,7 +29,7 @@ async function authedFetch(path: string, init: RequestInit = {}): Promise<Respon
   if (!headers.has("Content-Type") && init.body) {
     headers.set("Content-Type", "application/json");
   }
-  return fetch(`${BASE}${path}`, { ...init, headers });
+  return fetch(`${API_BASE}${path}`, { ...init, headers });
 }
 
 export class ApiError extends Error {
