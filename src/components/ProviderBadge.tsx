@@ -26,7 +26,8 @@ const COLORS: Record<string, { bg: string; fg: string; initials: string }> = {
 const SIZE_CLS: Record<string, string> = {
   sm: "h-6 w-6 text-[10px]",
   md: "h-8 w-8 text-xs",
-  lg: "h-12 w-12 text-base",
+  lg: "h-10 w-10 text-sm",
+  xl: "h-12 w-12 text-base",
 };
 
 export function ProviderBadge({
@@ -35,7 +36,7 @@ export function ProviderBadge({
   className = "",
 }: {
   provider: string;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   className?: string;
 }) {
   const conf = COLORS[provider] ?? {

@@ -1,12 +1,16 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ??
+  "https://vujpmkpkeomchblaygxn.supabase.co";
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1anBta3BrZW9tY2hibGF5Z3huIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4OTgzOTYsImV4cCI6MjA5MzQ3NDM5Nn0.NGQoLubtwYjeYu4K00R2MgZXUabMtSWgG1Ej9KM569Y";
 
 export async function createClient() {
   const cookieStore = await cookies();
-  return createServerClient(url, anonKey, {
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();

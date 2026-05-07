@@ -2,28 +2,48 @@ import type { Config } from "tailwindcss";
 
 const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
+  // Default is dark (via CSS vars). Light mode is opt-in via [data-theme="light"].
+  darkMode: ["class", '[data-theme="light"]'],
   theme: {
     extend: {
       colors: {
-        // FT-exact palette. Tokens mirror :root in globals.css.
-        bone: "#FFF1E5",
-        // bone-dim aliases the warm gray rule colour — FT uses it for
-        // hover surfaces. Kept as the same hex so utilities like
-        // `hover:bg-bone-dim` already-deployed across the app keep working
-        // without a sweep.
-        "bone-dim": "#E9E1D9",
-        ink: "#33302E",
-        "ink-soft": "#4A4642",
-        "ink-muted": "#66605A",
-        rule: "#E9E1D9",
-        accent: "#990F3D",
-        "dark-strip": "#1A1817",
-        white: "#FFFFFF",
-        negative: "#B3231C",
-        positive: "#178C3D",
+        bg: "var(--bg)",
+        "bg-elevated": "var(--bg-elevated)",
+        "bg-subtle": "var(--bg-subtle)",
+        border: "var(--border)",
+        "border-focus": "var(--border-focus)",
+
+        "text-primary": "var(--text-primary)",
+        "text-secondary": "var(--text-secondary)",
+        "text-muted": "var(--text-muted)",
+
+        brand: "var(--brand)",
+        "brand-hover": "var(--brand-hover)",
+        positive: "var(--positive)",
+        warning: "var(--warning)",
+        negative: "var(--negative)",
+
+        // Legacy aliases — keep so existing class names still resolve.
+        bone: "var(--bg)",
+        "bone-dim": "var(--bg-subtle)",
+        surface: "var(--bg-elevated)",
+        ink: "var(--text-primary)",
+        "ink-soft": "var(--text-secondary)",
+        "ink-muted": "var(--text-muted)",
+        rule: "var(--border)",
+        accent: "var(--brand)",
+        "dark-strip": "var(--dark-strip)",
+        white: "#ffffff",
       },
       fontFamily: {
-        display: ["var(--font-playfair)", "Georgia", "Times New Roman", "serif"],
+        display: [
+          "var(--font-inter)",
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "sans-serif",
+        ],
         serif: ["var(--font-source-serif)", "Georgia", "Times New Roman", "serif"],
         sans: [
           "var(--font-inter)",
@@ -33,22 +53,32 @@ const config: Config = {
           "Segoe UI",
           "sans-serif",
         ],
+        mono: [
+          "var(--font-jetbrains-mono)",
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Consolas",
+          "monospace",
+        ],
       },
       maxWidth: {
-        ft: "1220px",
+        ft: "1100px",
       },
       borderRadius: {
         none: "0",
         DEFAULT: "0",
-        sm: "2px",
-        md: "2px",
-        lg: "2px",
+        sm: "4px",
+        md: "6px",
+        lg: "8px",
+        xl: "8px",
       },
       fontSize: {
-        // Backwards-compat aliases for the previous palette. Will be removed
-        // once every page-level rewrite drops the old utilities.
-        hero: ["64px", { lineHeight: "1.05", letterSpacing: "-0.012em" }],
-        display: ["44px", { lineHeight: "1.1", letterSpacing: "-0.012em" }],
+        hero: ["72px", { lineHeight: "1.0", letterSpacing: "-0.02em" }],
+        display: ["32px", { lineHeight: "1.1", letterSpacing: "-0.012em" }],
+      },
+      transitionDuration: {
+        DEFAULT: "150ms",
       },
     },
   },

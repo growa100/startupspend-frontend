@@ -78,50 +78,85 @@ function BillingInner() {
       <SectionHeader eyebrow="Account" title="Billing" />
 
       {flash && (
-        <p className="mb-6 border-l-2 border-positive pl-4 text-sm text-positive">{flash}</p>
+        <p
+          className="mb-6 pl-4 text-sm"
+          style={{
+            borderLeft: "2px solid var(--positive)",
+            color: "var(--positive)",
+          }}
+        >
+          {flash}
+        </p>
       )}
 
       {err && (
-        <p className="mb-6 border-l-2 border-negative pl-4 text-sm text-negative">{err}</p>
+        <p
+          className="mb-6 pl-4 text-sm"
+          style={{
+            borderLeft: "2px solid var(--negative)",
+            color: "var(--negative)",
+          }}
+        >
+          {err}
+        </p>
       )}
 
       {status && (
-        <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
-          <div className="border-t border-rule pt-6">
-            <p className="text-xs uppercase tracking-wider text-ink-muted">Plan</p>
-            <p className="font-display mt-2 text-display capitalize">{status.plan}</p>
-            <p className="mt-1 text-sm text-ink-muted">Status: {status.status}</p>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="card">
+            <p className="cat-label">Plan</p>
+            <p
+              className="mt-2 capitalize"
+              style={{
+                fontSize: 28,
+                fontWeight: 700,
+                color: "var(--text-primary)",
+                letterSpacing: "-0.012em",
+              }}
+            >
+              {status.plan}
+            </p>
+            <p
+              className="mt-1"
+              style={{ fontSize: 13, color: "var(--text-muted)" }}
+            >
+              Status: {status.status}
+            </p>
             {status.trial_ends_at && status.plan === "pro" && status.status === "trialing" && (
-              <p className="mt-2 text-sm text-ink-soft">
-                Trial ends{" "}
-                {new Date(status.trial_ends_at).toLocaleDateString()}.
+              <p
+                className="mt-2"
+                style={{ fontSize: 13, color: "var(--text-secondary)" }}
+              >
+                Trial ends {new Date(status.trial_ends_at).toLocaleDateString()}.
               </p>
             )}
             {status.current_period_end && (
-              <p className="mt-2 text-sm text-ink-soft">
-                Renews{" "}
-                {new Date(status.current_period_end).toLocaleDateString()}.
+              <p
+                className="mt-2"
+                style={{ fontSize: 13, color: "var(--text-secondary)" }}
+              >
+                Renews {new Date(status.current_period_end).toLocaleDateString()}.
               </p>
             )}
           </div>
 
-          <div className="border-t border-rule pt-6">
-            <p className="text-xs uppercase tracking-wider text-ink-muted">Manage</p>
+          <div className="card">
+            <p className="cat-label">Manage</p>
             {status.plan === "free" ? (
               <button
                 onClick={checkout}
                 disabled={busy !== null}
-                className="mt-3 bg-ink px-6 py-3 text-sm text-bone hover:bg-ink-soft disabled:opacity-60"
+                className="btn-primary mt-3"
               >
-                {busy === "checkout" ? "..." : "Upgrade to Pro — $19/mo"}
+                {busy === "checkout" ? "…" : "Upgrade to Pro — $19/mo"}
               </button>
             ) : (
               <button
                 onClick={portal}
                 disabled={busy !== null}
-                className="mt-3 border border-ink px-6 py-3 text-sm hover:bg-bone-dim disabled:opacity-60"
+                className="btn-secondary mt-3"
               >
-                {busy === "portal" ? "..." : "Manage subscription"}
+                {busy === "portal" ? "…" : "Manage subscription"}
               </button>
             )}
           </div>

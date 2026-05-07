@@ -106,14 +106,18 @@ export function SubscriptionsClient() {
         }
       />
 
-      <p className="mb-6 max-w-2xl text-[14px] text-ink-muted">
+      <p
+        className="mb-6 max-w-2xl"
+        style={{ fontSize: 14, color: "var(--text-muted)" }}
+      >
         Monthly tools without a billing API. Vercel Pro, GitHub Team, ChatGPT
         Plus — anything you want included in projections.
       </p>
 
       <form
         onSubmit={add}
-        className="grid grid-cols-1 gap-3 border-t border-rule pt-6 sm:grid-cols-12"
+        className="grid grid-cols-1 gap-3 pt-6 sm:grid-cols-12"
+        style={{ borderTop: "1px solid var(--border)" }}
       >
         <input
           required
@@ -160,19 +164,30 @@ export function SubscriptionsClient() {
           {busy ? "…" : "Add"}
         </button>
         {err && (
-          <p className="border-l-2 border-negative pl-3 text-[13px] text-negative sm:col-span-12">
+          <p
+            className="pl-3 sm:col-span-12"
+            style={{
+              borderLeft: "2px solid var(--negative)",
+              color: "var(--negative)",
+              fontSize: 13,
+            }}
+          >
             {err}
           </p>
         )}
       </form>
 
-      <div className="mt-10">
+      <div className="mt-8">
         {state.status === "loading" && (
-          <div className="space-y-3 border-t border-rule pt-4">
+          <div
+            className="space-y-3 pt-4"
+            style={{ borderTop: "1px solid var(--border)" }}
+          >
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className="flex items-baseline justify-between border-b border-rule pb-3"
+                className="flex items-baseline justify-between pb-3"
+                style={{ borderBottom: "1px solid var(--border)" }}
               >
                 <SkeletonLine className="h-4 w-40" />
                 <SkeletonLine className="h-4 w-16" />
@@ -182,7 +197,14 @@ export function SubscriptionsClient() {
         )}
 
         {state.status === "error" && (
-          <p className="border-l-2 border-negative pl-3 text-[13px] text-negative">
+          <p
+            className="pl-3"
+            style={{
+              borderLeft: "2px solid var(--negative)",
+              color: "var(--negative)",
+              fontSize: 13,
+            }}
+          >
             {state.message}
           </p>
         )}
@@ -192,48 +214,116 @@ export function SubscriptionsClient() {
         )}
 
         {state.status === "ready" && state.data.length > 0 && (
-          <div className="-mx-6 overflow-x-auto px-6">
-            <table className="w-full min-w-[640px] text-[14px]">
+          <div className="card -mx-0 overflow-x-auto" style={{ padding: 0 }}>
+            <table className="w-full min-w-[640px]" style={{ fontSize: 13 }}>
               <thead>
-                <tr className="border-b border-rule">
-                  <th className="cat-label-muted py-3 text-left font-normal">
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  <th
+                    className="px-5 py-3 text-left"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "var(--text-muted)",
+                    }}
+                  >
                     Name
                   </th>
-                  <th className="cat-label-muted py-3 text-right font-normal tabular">
+                  <th
+                    className="px-5 py-3 text-right"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "var(--text-muted)",
+                    }}
+                  >
                     Amount/mo
                   </th>
-                  <th className="cat-label-muted py-3 text-right font-normal tabular">
+                  <th
+                    className="px-5 py-3 text-right"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "var(--text-muted)",
+                    }}
+                  >
                     Day
                   </th>
-                  <th className="cat-label-muted py-3 text-left font-normal">
+                  <th
+                    className="px-5 py-3 text-left"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "var(--text-muted)",
+                    }}
+                  >
                     Category
                   </th>
-                  <th className="cat-label-muted py-3 text-right font-normal">
+                  <th
+                    className="px-5 py-3 text-right"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "var(--text-muted)",
+                    }}
+                  >
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {state.data.map((s) => (
-                  <tr key={s.id} className="border-b border-rule">
-                    <td className="py-3 text-ink">{s.name}</td>
-                    <td className="py-3 text-right text-ink">
+                  <tr
+                    key={s.id}
+                    style={{
+                      borderTop: "1px solid #1a1a1a",
+                    }}
+                  >
+                    <td
+                      className="px-5 py-3"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      {s.name}
+                    </td>
+                    <td
+                      className="mono px-5 py-3 text-right"
+                      style={{ color: "var(--text-primary)" }}
+                    >
                       <MoneyText value={s.monthly_amount_usd} />
                     </td>
-                    <td className="py-3 text-right tabular text-ink-muted">
+                    <td
+                      className="mono px-5 py-3 text-right"
+                      style={{ color: "var(--text-muted)" }}
+                    >
                       {s.billing_day}
                     </td>
-                    <td className="py-3 text-ink-muted">{s.category}</td>
-                    <td className="py-3 text-right">
+                    <td
+                      className="px-5 py-3"
+                      style={{ color: "var(--text-muted)" }}
+                    >
+                      {s.category}
+                    </td>
+                    <td className="px-5 py-3 text-right">
                       <button
                         onClick={() => setEditing({ ...s })}
-                        className="mr-4 text-[12px] text-accent underline-offset-4 hover:underline"
+                        className="mr-4 hover:underline"
+                        style={{ fontSize: 12, color: "var(--brand)" }}
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => remove(s.id)}
-                        className="text-[12px] text-ink-muted underline-offset-4 hover:text-negative hover:underline"
+                        className="hover:underline"
+                        style={{ fontSize: 12, color: "var(--text-muted)" }}
                       >
                         Delete
                       </button>
@@ -248,16 +338,26 @@ export function SubscriptionsClient() {
 
       {editing && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30"
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.6)" }}
           onClick={() => setEditing(null)}
         >
           <div
-            className="w-full max-w-md bg-bone p-8"
+            className="w-full max-w-md p-6"
+            style={{
+              background: "var(--bg-elevated)",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <p
-              className="font-display text-ink"
-              style={{ fontSize: "24px", letterSpacing: "-0.012em" }}
+              style={{
+                color: "var(--text-primary)",
+                fontSize: 20,
+                fontWeight: 700,
+                letterSpacing: "-0.012em",
+              }}
             >
               Edit subscription
             </p>

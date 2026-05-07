@@ -5,45 +5,68 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const LINKS = [
-  { href: "/", label: "Home" },
+  { href: "/#features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
 ];
 
-/**
- * Public marketing nav. Same FT structure as authed NavBar — left
- * wordmark, right links — but with Sign in / Sign up CTAs on the right.
- */
 export function PublicNav() {
   const path = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   useEffect(() => setDrawerOpen(false), [path]);
 
   return (
-    <header className="border-b border-rule bg-white">
+    <header
+      style={{
+        background: "var(--nav-bg)",
+        borderBottom: "1px solid var(--nav-border)",
+      }}
+    >
       <div
-        className="mx-auto flex max-w-ft items-center justify-between px-6"
-        style={{ height: "64px" }}
+        className="mx-auto flex max-w-ft items-center justify-between px-8"
+        style={{ height: "56px" }}
       >
         <Link
           href="/"
-          className="font-display text-[22px] font-medium leading-none tracking-tight text-ink"
+          className="ui-sans inline-flex items-center gap-2 leading-none"
+          style={{
+            color: "var(--text-primary)",
+            fontWeight: 600,
+            fontSize: 16,
+            letterSpacing: "-0.01em",
+          }}
         >
+          <span
+            aria-hidden
+            style={{
+              width: 8,
+              height: 8,
+              background: "#2563eb",
+              borderRadius: 2,
+            }}
+          />
           StartupSpend
         </Link>
         <nav className="ui-sans hidden items-center md:flex">
-          <ul className="flex items-center" style={{ gap: "24px" }}>
+          <ul className="flex items-center" style={{ gap: "20px" }}>
             {LINKS.map((l) => {
               const active = path === l.href;
               return (
                 <li key={l.href}>
                   <Link
                     href={l.href}
-                    className={
-                      "inline-block py-[20px] text-[13px] text-ink transition-colors hover:text-accent " +
-                      (active
-                        ? "border-b-2 border-accent"
-                        : "border-b-2 border-transparent")
-                    }
+                    className="inline-block transition-colors"
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: active
+                        ? "var(--text-primary)"
+                        : "var(--text-secondary)",
+                      paddingTop: 18,
+                      paddingBottom: 18,
+                      borderBottom: active
+                        ? "2px solid var(--brand)"
+                        : "2px solid transparent",
+                    }}
                   >
                     {l.label}
                   </Link>
@@ -53,7 +76,14 @@ export function PublicNav() {
             <li className="ml-2">
               <Link
                 href="/login"
-                className="inline-block py-[20px] text-[13px] text-ink hover:text-accent"
+                className="inline-block transition-colors"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: "var(--text-secondary)",
+                  paddingTop: 18,
+                  paddingBottom: 18,
+                }}
               >
                 Sign in
               </Link>
@@ -72,14 +102,16 @@ export function PublicNav() {
           aria-expanded={drawerOpen}
           onClick={() => setDrawerOpen((v) => !v)}
           className="md:hidden"
+          style={{ color: "var(--text-secondary)" }}
         >
           <span
             className="relative inline-block"
             style={{ width: "20px", height: "16px" }}
           >
             <span
-              className="absolute left-0 right-0 bg-ink"
+              className="absolute left-0 right-0"
               style={{
+                background: "currentColor",
                 height: "2px",
                 top: drawerOpen ? "7px" : "0",
                 transform: drawerOpen ? "rotate(45deg)" : "none",
@@ -87,8 +119,9 @@ export function PublicNav() {
               }}
             />
             <span
-              className="absolute left-0 right-0 bg-ink"
+              className="absolute left-0 right-0"
               style={{
+                background: "currentColor",
                 height: "2px",
                 top: "7px",
                 opacity: drawerOpen ? 0 : 1,
@@ -96,8 +129,9 @@ export function PublicNav() {
               }}
             />
             <span
-              className="absolute left-0 right-0 bg-ink"
+              className="absolute left-0 right-0"
               style={{
+                background: "currentColor",
                 height: "2px",
                 top: drawerOpen ? "7px" : "14px",
                 transform: drawerOpen ? "rotate(-45deg)" : "none",
@@ -109,31 +143,62 @@ export function PublicNav() {
       </div>
 
       {drawerOpen && (
-        <div className="ui-sans fixed inset-0 z-50 bg-bone md:hidden">
+        <div
+          className="ui-sans fixed inset-0 z-50 md:hidden"
+          style={{ background: "var(--nav-bg)" }}
+        >
           <div
-            className="flex items-center justify-between border-b border-rule bg-white px-6"
-            style={{ height: "64px" }}
+            className="flex items-center justify-between px-8"
+            style={{
+              height: "56px",
+              borderBottom: "1px solid #1a1a1a",
+            }}
           >
-            <span className="font-display text-[22px] font-medium text-ink">
+            <span
+              className="inline-flex items-center gap-2"
+              style={{
+                color: "var(--text-primary)",
+                fontWeight: 600,
+                fontSize: 16,
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 8,
+                  height: 8,
+                  background: "#2563eb",
+                  borderRadius: 2,
+                }}
+              />
               StartupSpend
             </span>
             <button
               type="button"
               aria-label="Close menu"
               onClick={() => setDrawerOpen(false)}
-              className="text-[14px] text-ink"
+              style={{ fontSize: 14, color: "var(--text-secondary)" }}
             >
               Close
             </button>
           </div>
-          <nav className="px-6 py-8">
+          <nav className="px-8 py-6">
             <ul className="flex flex-col gap-1">
-              {[...LINKS, { href: "/login", label: "Sign in" }, { href: "/signup", label: "Sign up" }].map((l) => (
+              {[
+                ...LINKS,
+                { href: "/login", label: "Sign in" },
+                { href: "/signup", label: "Sign up" },
+              ].map((l) => (
                 <li key={l.href}>
                   <Link
                     href={l.href}
                     onClick={() => setDrawerOpen(false)}
-                    className="block border-b border-rule py-4 text-base text-ink"
+                    className="block py-3"
+                    style={{
+                      fontSize: 15,
+                      color: "var(--text-secondary)",
+                      borderBottom: "1px solid var(--border)",
+                    }}
                   >
                     {l.label}
                   </Link>

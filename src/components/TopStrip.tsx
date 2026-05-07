@@ -5,10 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 /**
- * 32px dark strip at the very top of every authed page.
- * Left: site brand (small, white-muted). Right: user email + Sign out.
- *
- * No ticker — FT doesn't have one and the previous attempt was a mistake.
+ * Compact top strip — site name left, email + sign-out right.
+ * Sits flush against the nav, uses bg + text-muted to stay quiet.
  */
 export function TopStrip({ email }: { email?: string | null }) {
   const router = useRouter();
@@ -22,22 +20,31 @@ export function TopStrip({ email }: { email?: string | null }) {
 
   return (
     <div
-      className="ui-sans flex items-center justify-between bg-dark-strip text-white"
-      style={{ height: "32px" }}
+      className="ui-sans flex items-center justify-between"
+      style={{
+        background: "var(--bg)",
+        color: "var(--text-muted)",
+        height: "28px",
+        borderBottom: "1px solid var(--border)",
+      }}
     >
-      <span className="px-4 text-[11px] tracking-[0.04em] text-white/60">
+      <span
+        className="px-8 text-[11px]"
+        style={{ letterSpacing: "0.02em" }}
+      >
         startupspend.cloud
       </span>
-      <span className="flex items-center gap-4 px-4 text-[11px] tracking-[0.04em]">
+      <span className="flex items-center gap-3 px-8 text-[11px]">
         {email && (
-          <span className="hidden text-white/60 sm:inline" title={email}>
+          <span className="hidden sm:inline" title={email}>
             {email}
           </span>
         )}
         <button
           type="button"
           onClick={signOut}
-          className="text-white hover:text-white/70"
+          className="transition-colors hover:text-text-primary"
+          style={{ color: "var(--text-secondary)" }}
         >
           Sign out
         </button>

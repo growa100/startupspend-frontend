@@ -28,7 +28,7 @@ export default function PricingPage() {
         </p>
 
         <div className="ui-sans mt-12 grid grid-cols-1 gap-8 md:grid-cols-2">
-          <div className="border border-rule bg-white p-8">
+          <div className="p-8 card">
             <p className="cat-label-muted">Free</p>
             <p
               className="font-display tabular mt-2 text-ink"
@@ -56,7 +56,7 @@ export default function PricingPage() {
             </Link>
           </div>
 
-          <div className="border border-rule bg-white p-8">
+          <div className="p-8 card">
             <p className="cat-label">Most popular</p>
             <p className="cat-label-muted mt-3">Pro</p>
             <p

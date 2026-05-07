@@ -3,8 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TopStrip } from "@/components/TopStrip";
 import { NavBar } from "@/components/NavBar";
 import { AdminShell } from "@/components/AdminShell";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+import { API_BASE } from "@/lib/api";
 
 /**
  * Shared admin layout — gates server-side on is_admin.

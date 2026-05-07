@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { createBrowserClient } from "@supabase/ssr";
 
 /**
  * Resolved at module load. Order:
@@ -17,17 +17,61 @@ export const API_BASE: string =
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   "https://api.startupspend.cloud";
 
-async function authedFetch(path: string, init: RequestInit = {}): Promise<Response> {
-  const supabase = createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const token = session?.access_token;
+// Hardcoded Supabase fallbacks mirror lib/supabase/client.ts. The anon key
+// is designed to be public — security comes from RLS, not key secrecy.
+const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ??
+  "https://vujpmkpkeomchblaygxn.supabase.co";
+const SUPABASE_ANON_KEY =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ1anBta3BrZW9tY2hibGF5Z3huIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4OTgzOTYsImV4cCI6MjA5MzQ3NDM5Nn0.NGQoLubtwYjeYu4K00R2MgZXUabMtSWgG1Ej9KM569Y";
+
+/**
+ * Single browser-client instance per page load. Lazy so this module is
+ * safe to import from anywhere — server-side callers see null and
+ * continue without an Authorization header (the backend returns 401, the
+ * caller surfaces an ApiError; we never leave a fetch hanging).
+ */
+let _browserClient: ReturnType<typeof createBrowserClient> | null = null;
+function getBrowserClient(): ReturnType<typeof createBrowserClient> | null {
+  if (typeof window === "undefined") return null;
+  if (_browserClient) return _browserClient;
+  _browserClient = createBrowserClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return _browserClient;
+}
+
+async function getAccessToken(): Promise<string | null> {
+  const client = getBrowserClient();
+  if (!client) return null;
+  try {
+    const { data, error } = await client.auth.getSession();
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.warn("[api] supabase getSession error:", error.message);
+      return null;
+    }
+    return data.session?.access_token ?? null;
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn("[api] supabase getSession threw:", e);
+    return null;
+  }
+}
+
+async function authedFetch(
+  path: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  const token = await getAccessToken();
   const headers = new Headers(init.headers);
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
   if (!headers.has("Content-Type") && init.body) {
     headers.set("Content-Type", "application/json");
   }
+  // No session? Still make the call — let the backend return 401 so the
+  // caller can surface a real error instead of a hang.
   return fetch(`${API_BASE}${path}`, { ...init, headers });
 }
 
@@ -105,6 +149,7 @@ export type Provider = {
   name: string;
   display_name: string;
   docs_url: string;
+  coming_soon: boolean;
   credential_fields: {
     name: string;
     label: string;
@@ -138,10 +183,59 @@ export type MonthSummary = {
     z_score: number;
   } | null;
   daily: { date: string; amount_usd: string }[];
+  // Optional — present when the backend is on the post-redesign build.
+  // Frontend must not crash when it's missing.
+  daily_by_provider?: {
+    date: string;
+    total: string;
+    providers: { provider: string; display_name: string; amount: string }[];
+  }[];
   by_category: { category: string; amount_usd: string }[];
   by_provider: { provider: string; display_name: string; amount_usd: string }[];
+  subscriptions: {
+    items: {
+      id: string;
+      name: string;
+      monthly_amount_usd: string;
+      billing_day: number;
+      next_billing_date: string;
+      billed_this_month: boolean;
+    }[];
+    billed_this_month_usd: string;
+    unbilled_this_month_usd: string;
+    monthly_total_usd: string;
+  };
   has_connections: boolean;
   generated_at: string;
+};
+
+export type HistoryPeriod = {
+  label: string;
+  period_start: string;
+  period_end: string;
+  total_usd: string;
+  by_provider: { provider: string; display_name: string; amount_usd: string }[];
+  by_category: { category: string; amount_usd: string }[];
+  // Optional — present when the backend is on the post-redesign build.
+  daily?: {
+    date: string;
+    total: string;
+    providers: { provider: string; amount: string }[];
+  }[];
+  vs_previous_pct: number | null;
+  is_current: boolean;
+};
+
+export type History = {
+  period: "week" | "month" | "quarter" | "year";
+  months_back: number;
+  periods: HistoryPeriod[];
+  trend: "up" | "down" | "flat";
+  avg_monthly_usd: string;
+  highest_month: { label: string; total_usd: string } | null;
+  lowest_month: { label: string; total_usd: string } | null;
+  yoy_change_pct: number | null;
+  has_connections: boolean;
 };
 
 export type Resource = {
@@ -153,6 +247,12 @@ export type Resource = {
   avg_net_in_bytes: number | null;
   avg_net_out_bytes: number | null;
   classification: "idle" | "underused" | "active";
+};
+
+export type ResourcesResponse = {
+  items: Resource[];
+  has_metrics: boolean;
+  connection_count: number;
 };
 
 export type FlatSubscription = {

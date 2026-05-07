@@ -3,69 +3,131 @@
 @tailwind utilities;
 
 /* =================================================================
- * FT exact palette
- * Page background, primary/secondary text, FT dark red accent, warm
- * gray rule, dark strip, white panels.
+ * StartupSpend — TradeLogs aesthetic
+ * Dark-first design system. Brand is electric blue (#2563eb) — used
+ * only for interactive UI chrome. Provider colours live in chart
+ * fills/strokes/dots only, never as backgrounds or borders on data
+ * rows.
  * ================================================================= */
 
 :root {
-  --bone:        #FFF1E5;  /* FT salmon page background */
-  --ink:         #33302E;  /* FT warm near-black */
-  --ink-soft:    #4A4642;  /* slight tonal step-down for emphasis */
-  --ink-muted:   #66605A;  /* FT secondary text */
-  --rule:        #E9E1D9;  /* FT warm gray rule */
-  --accent:      #990F3D;  /* FT dark red */
-  --dark-strip:  #1A1817;  /* FT top strip */
-  --white:       #FFFFFF;  /* content panels */
-  --negative:    #B3231C;  /* FT alert red, slightly different from accent */
-  --positive:    #178C3D;  /* FT positive green */
+  --bg:            #0a0a0a;
+  --bg-elevated:   #111111;
+  --bg-subtle:     #1a1a1a;
+  --border:        #262626;
+  --border-focus:  #404040;
+  --grid:          #1f1f1f;
+  --text-primary:  #ffffff;
+  --text-secondary:#a1a1aa;
+  --text-muted:    #52525b;
+
+  --brand:         #2563eb;
+  --brand-hover:   #1d4ed8;
+  --positive:      #22c55e;
+  --warning:       #f59e0b;
+  --negative:      #ef4444;
+
+  --positive-bg:   #0a1a0a;
+  --negative-bg:   #1a0a0a;
+  --warning-bg:    #1a1408;
+
+  /* Nav strip — pure black on dark, pure white on light. Tracked
+   * separately because the rest of the dark page uses #0a0a0a, not
+   * #000, and the contrast with elevated cards needs to stay sharp. */
+  --nav-bg:        #000000;
+  --nav-border:    #1a1a1a;
+
+  /* Legacy aliases — keep so existing imports referencing the old
+   * names still resolve. They map to the new design system. */
+  --surface:       var(--bg-elevated);
+  --ink:           var(--text-primary);
+  --ink-soft:      var(--text-secondary);
+  --ink-muted:     var(--text-muted);
+  --rule:          var(--border);
+  --rule-strong:   var(--border);
+  --accent:        var(--brand);
+  --dark-strip:    #000000;
 }
 
-html,
-body {
-  background: var(--bone);
-  color: var(--ink);
+[data-theme="light"] {
+  /* Page surfaces */
+  --bg:            #f9fafb;
+  --bg-elevated:   #ffffff;
+  --bg-subtle:     #f3f4f6;
+  --border:        #e5e7eb;
+  --border-focus:  #d1d5db;
+  --grid:          #f1f5f9;
+
+  /* Text */
+  --text-primary:  #111111;
+  --text-secondary:#6b7280;
+  --text-muted:    #9ca3af;
+
+  /* Brand + state */
+  --brand:         #2563eb;
+  --brand-hover:   #1d4ed8;
+  --positive:      #16a34a;
+  --warning:       #d97706;
+  --negative:      #dc2626;
+
+  --positive-bg:   #ecfdf5;
+  --negative-bg:   #fef2f2;
+  --warning-bg:    #fffbeb;
+
+  /* Nav strip — light mode swaps to white. */
+  --nav-bg:        #ffffff;
+  --nav-border:    #e5e7eb;
+
+  /* Legacy aliases */
+  --surface:       var(--bg-elevated);
+  --ink:           var(--text-primary);
+  --ink-soft:      var(--text-secondary);
+  --ink-muted:     var(--text-muted);
+  --rule:          var(--border);
+  --rule-strong:   var(--border);
+  --accent:        var(--brand);
+  --dark-strip:    #ffffff;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  font-family: var(--font-source-serif), Georgia, "Times New Roman", serif;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1.5;
+  transition: background-color 150ms ease, color 150ms ease;
 }
 
-/* UI surfaces (nav, buttons, inputs, labels) use Inter — keeps numerals
- * legible at small sizes without tripping the FT serif body cadence. */
 .ui-sans {
   font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", sans-serif;
 }
 
-/* === Headlines / display === */
 .font-display {
-  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
-  font-weight: 500;
-  letter-spacing: -0.012em;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.018em;
 }
 
-.tabular {
+.tabular,
+.mono {
+  font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo,
+    Consolas, monospace;
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
 
-/* === Section rules — clean 1px warm-gray, never dotted, never thick === */
-.hr-rule {
-  border: 0;
-  border-top: 1px solid var(--rule);
-}
-
-/* === FT-style category label ===
- * uppercase 11–12px, 0.05em tracking, in the FT dark red. */
+/* Section labels — text-secondary, NOT brand blue. Blue is interactive only. */
 .cat-label {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--accent);
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
   font-weight: 600;
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
@@ -73,35 +135,51 @@ body {
 .cat-label-muted {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--ink-muted);
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
   font-weight: 500;
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* === Article body — 18px reading column for marketing prose === */
+/* Page titles */
+.page-title {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 24px;
+  letter-spacing: -0.012em;
+  color: var(--text-primary);
+}
+
+.hr-rule {
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
 .article-body {
-  font-size: 18px;
-  line-height: 1.7;
+  font-size: 16px;
+  line-height: 1.6;
   max-width: 680px;
 }
 
-/* === Buttons (2px radius — only place radius is allowed) === */
+/* Buttons */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--accent);
-  color: #fff;
-  padding: 10px 18px;
+  background: var(--brand);
+  color: #ffffff;
+  padding: 8px 16px;
   font-size: 14px;
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   font-weight: 500;
-  border-radius: 2px;
-  border: 1px solid var(--accent);
-  transition: background-color 120ms ease, border-color 120ms ease;
+  border-radius: 6px;
+  border: 1px solid var(--brand);
+  transition: background-color 150ms ease, border-color 150ms ease;
 }
-.btn-primary:hover { background: #7E0C32; border-color: #7E0C32; }
+.btn-primary:hover {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
 .btn-primary:disabled { opacity: 0.55; }
 
 .btn-secondary {
@@ -109,68 +187,122 @@ body {
   align-items: center;
   justify-content: center;
   background: transparent;
-  color: var(--ink);
-  padding: 10px 18px;
+  color: var(--text-secondary);
+  padding: 8px 16px;
   font-size: 14px;
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   font-weight: 500;
-  border: 1px solid var(--ink);
-  border-radius: 2px;
-  transition: background-color 120ms ease;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transition: border-color 150ms ease, color 150ms ease, background-color 150ms ease;
 }
-.btn-secondary:hover { background: var(--rule); }
+.btn-secondary:hover {
+  border-color: var(--border-focus);
+  color: var(--text-primary);
+}
+.btn-secondary:disabled { opacity: 0.55; }
 
+/* Legacy alias kept so old call sites still render. */
 .btn-dark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--ink);
-  color: var(--white);
-  padding: 10px 18px;
+  background: var(--brand);
+  color: #ffffff;
+  padding: 8px 16px;
   font-size: 14px;
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   font-weight: 500;
-  border: 1px solid var(--ink);
-  border-radius: 2px;
-  transition: background-color 120ms ease;
+  border-radius: 6px;
+  border: 1px solid var(--brand);
+  transition: background-color 150ms ease;
 }
-.btn-dark:hover { background: var(--ink-soft); }
+.btn-dark:hover { background: var(--brand-hover); }
 
-/* === Form inputs (2px radius) === */
 .field-input {
   width: 100%;
-  border: 1px solid var(--rule);
-  background: var(--white);
-  border-radius: 2px;
-  padding: 10px 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-primary);
+  border-radius: 6px;
+  padding: 8px 12px;
   font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   font-size: 14px;
-  color: var(--ink);
+  transition: border-color 150ms ease;
 }
+.field-input::placeholder { color: var(--text-muted); }
 .field-input:focus {
   outline: none;
-  border-color: var(--ink);
+  border-color: var(--brand);
 }
 
-/* === Skeleton — text-shaped, never spinners === */
+/* Cards — bg-elevated, 1px border, 8px radius. */
+.card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  transition: border-color 150ms ease;
+}
+.card-hover:hover {
+  border-color: var(--border-focus);
+}
+.connection-card:hover {
+  border-color: var(--border-focus);
+}
+
+/* Status chip */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.chip-positive { color: var(--positive); border-color: var(--border); background: var(--positive-bg); }
+.chip-warning  { color: var(--warning);  border-color: var(--border); background: var(--warning-bg); }
+.chip-negative { color: var(--negative); border-color: var(--border); background: var(--negative-bg); }
+.chip-neutral  { color: var(--text-muted); }
+
 .skeleton {
   display: inline-block;
-  background: var(--rule);
-  border-radius: 0;
+  background: var(--bg-subtle);
+  border-radius: 4px;
   animation: skeleton-pulse 1.4s ease-in-out infinite;
 }
-
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
 }
 
-/* === Focus ring === */
 *:focus-visible {
-  outline: 2px solid var(--ink);
+  outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
 
-/* === Hide scrollbar utility for horizontal pill nav === */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Provider pill stagger */
+@keyframes pill-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.pill-enter {
+  animation: pill-enter 220ms ease-out both;
+}
+
+.touch-target { min-height: 36px; }
+
+/* Recharts cursor — subtle. */
+.recharts-tooltip-cursor {
+  fill: rgba(255, 255, 255, 0.04);
+}
+[data-theme="light"] .recharts-tooltip-cursor {
+  fill: rgba(0, 0, 0, 0.04);
+}

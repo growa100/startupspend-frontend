@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { SectionHeader } from "@/components/SectionHeader";
 import { SkeletonLine } from "@/components/Skeleton";
+import { formatProviderName } from "@/lib/providerColors";
 
 export function ConnectionDetailClient({ id }: { id: string }) {
   const router = useRouter();
@@ -69,12 +70,20 @@ export function ConnectionDetailClient({ id }: { id: string }) {
     return (
       <div className="ui-sans">
         <SectionHeader title="Connection" />
-        <p className="border-l-2 border-negative pl-4 text-[13px] text-negative">
+        <p
+          className="pl-4"
+          style={{
+            borderLeft: "2px solid var(--negative)",
+            color: "var(--negative)",
+            fontSize: 13,
+          }}
+        >
           {error}
         </p>
         <Link
           href="/connections"
-          className="mt-4 inline-block text-[13px] text-accent underline"
+          className="mt-4 inline-block hover:underline"
+          style={{ fontSize: 13, color: "var(--brand)" }}
         >
           Back
         </Link>
@@ -87,35 +96,52 @@ export function ConnectionDetailClient({ id }: { id: string }) {
     <div className="ui-sans">
       <Link
         href="/connections"
-        className="cat-label-muted mt-12 inline-block hover:text-ink"
+        className="cat-label-muted mt-8 inline-block transition-colors hover:text-text-primary"
       >
         ← Connections
       </Link>
       <SectionHeader
         eyebrow={conn.provider}
-        title={conn.display_name}
+        title={formatProviderName(conn.provider)}
         meta={conn.is_active ? "Active" : "Paused"}
       />
 
       {error && (
-        <p className="mb-4 border-l-2 border-negative pl-3 text-[13px] text-negative">
+        <p
+          className="mb-4 pl-3"
+          style={{
+            borderLeft: "2px solid var(--negative)",
+            color: "var(--negative)",
+            fontSize: 13,
+          }}
+        >
           {error}
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
-        <div className="border-t border-rule pt-6">
-          <p className="cat-label-muted">Sync</p>
-          <p className="mt-3 text-[14px] text-ink">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="card">
+          <p className="cat-label">Sync</p>
+          <p
+            className="mt-3"
+            style={{ fontSize: 14, color: "var(--text-primary)" }}
+          >
             Last:{" "}
             {conn.last_synced_at ? (
               new Date(conn.last_synced_at).toLocaleString()
             ) : (
-              <span className="text-ink-muted">never</span>
+              <span style={{ color: "var(--text-muted)" }}>never</span>
             )}
           </p>
           {conn.last_sync_error && (
-            <p className="mt-2 border-l-2 border-negative pl-3 text-[13px] text-negative">
+            <p
+              className="mt-2 pl-3"
+              style={{
+                borderLeft: "2px solid var(--negative)",
+                color: "var(--negative)",
+                fontSize: 13,
+              }}
+            >
               {conn.last_sync_error}
             </p>
           )}
@@ -129,21 +155,25 @@ export function ConnectionDetailClient({ id }: { id: string }) {
           </button>
         </div>
 
-        <div className="border-t border-rule pt-6">
-          <p className="cat-label-muted">Created</p>
-          <p className="mt-3 text-[14px] text-ink">
+        <div className="card">
+          <p className="cat-label">Created</p>
+          <p
+            className="mt-3"
+            style={{ fontSize: 14, color: "var(--text-primary)" }}
+          >
             {new Date(conn.created_at).toLocaleString()}
           </p>
         </div>
       </div>
 
-      <div className="mt-12 border-t border-rule pt-6">
-        <p className="cat-label-muted">Danger zone</p>
+      <div className="card mt-4">
+        <p className="cat-label">Danger zone</p>
         <button
           type="button"
           onClick={remove}
           disabled={busy === "delete"}
-          className="btn-secondary mt-3 border-negative text-negative hover:bg-rule disabled:opacity-60"
+          className="btn-secondary mt-3 disabled:opacity-60"
+          style={{ borderColor: "var(--negative)", color: "var(--negative)" }}
         >
           Delete connection
         </button>

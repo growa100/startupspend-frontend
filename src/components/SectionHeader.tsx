@@ -1,8 +1,8 @@
 /**
- * Standard FT-style section header used by every authed sub-page.
+ * Standard section header for authed sub-pages.
  *
- * Eyebrow in 11px caps FT-red, title in Playfair Display 36px (clamped),
- * optional meta in 13px ink-muted on the right baseline.
+ * Eyebrow in 11px text-secondary uppercase, title in Inter 700 24px,
+ * optional meta in 13px text-muted on the right baseline.
  */
 export function SectionHeader({
   eyebrow,
@@ -14,21 +14,17 @@ export function SectionHeader({
   meta?: string;
 }) {
   return (
-    <header style={{ paddingTop: "48px" }} className="mb-8">
+    <header className="mb-6 pt-8">
       {eyebrow && <p className="cat-label">{eyebrow}</p>}
-      <div className="mt-3 flex flex-col items-baseline gap-2 sm:flex-row sm:justify-between sm:gap-4">
-        <h1
-          className="font-display text-ink"
-          style={{
-            fontSize: "clamp(28px, 4vw, 36px)",
-            lineHeight: 1.1,
-            letterSpacing: "-0.012em",
-          }}
-        >
-          {title}
-        </h1>
+      <div className="mt-2 flex flex-col items-baseline gap-2 sm:flex-row sm:justify-between sm:gap-4">
+        <h1 className="page-title">{title}</h1>
         {meta && (
-          <span className="ui-sans text-[13px] text-ink-muted">{meta}</span>
+          <span
+            className="ui-sans"
+            style={{ color: "var(--text-muted)", fontSize: 13 }}
+          >
+            {meta}
+          </span>
         )}
       </div>
     </header>

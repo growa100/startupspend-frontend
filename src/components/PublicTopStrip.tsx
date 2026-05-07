@@ -1,23 +1,35 @@
 import Link from "next/link";
 
-/**
- * Public version of <TopStrip /> — no auth-aware sign-out, just a brand
- * line and Sign in / Sign up. 32px dark.
- */
 export function PublicTopStrip() {
   return (
     <div
-      className="ui-sans flex items-center justify-between bg-dark-strip text-white"
-      style={{ height: "32px" }}
+      className="ui-sans flex items-center justify-between"
+      style={{
+        background: "var(--bg)",
+        color: "var(--text-muted)",
+        height: "28px",
+        borderBottom: "1px solid var(--border)",
+      }}
     >
-      <span className="px-4 text-[11px] tracking-[0.04em] text-white/60">
+      <span
+        className="px-8 text-[11px]"
+        style={{ letterSpacing: "0.02em" }}
+      >
         startupspend.cloud
       </span>
-      <span className="flex items-center gap-4 px-4 text-[11px] tracking-[0.04em]">
-        <Link href="/login" className="text-white hover:text-white/70">
+      <span className="flex items-center gap-3 px-8 text-[11px]">
+        <Link
+          href="/login"
+          className="transition-colors hover:text-text-primary"
+          style={{ color: "var(--text-secondary)" }}
+        >
           Sign in
         </Link>
-        <Link href="/signup" className="text-white hover:text-white/70">
+        <Link
+          href="/signup"
+          className="transition-colors hover:text-text-primary"
+          style={{ color: "var(--text-secondary)" }}
+        >
           Sign up
         </Link>
       </span>

@@ -4,7 +4,6 @@ import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { PublicTopStrip } from "@/components/PublicTopStrip";
 
 type Mode = "password" | "magic";
 
@@ -78,92 +77,167 @@ function LoginInner() {
   }
 
   return (
-    <main className="min-h-screen bg-bone">
-      <PublicTopStrip />
-
-      <header className="border-b border-rule bg-white">
-        <div
-          className="mx-auto flex max-w-ft items-center justify-between px-6"
-          style={{ height: "64px" }}
-        >
-          <Link
-            href="/"
-            className="font-display text-[22px] font-medium leading-none tracking-tight text-ink"
-          >
-            StartupSpend
-          </Link>
-          <Link
-            href="/signup"
-            className="ui-sans text-[13px] text-ink hover:text-accent"
-          >
-            Create an account
-          </Link>
-        </div>
-      </header>
-
-      <section
-        className="ui-sans mx-auto max-w-md px-6"
-        style={{ paddingTop: "64px", paddingBottom: "96px" }}
+    <main
+      className="ui-sans flex min-h-screen flex-col items-center"
+      style={{
+        background: "#f4f4f5",
+        padding: "64px 24px",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 400,
+          background: "#ffffff",
+          borderRadius: 12,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+          padding: "32px 40px",
+        }}
       >
-        <p className="cat-label">Account</p>
-        <h1
-          className="font-display mt-3 text-ink"
+        <Link
+          href="/"
+          className="inline-flex items-center"
           style={{
-            fontSize: "clamp(2rem, 4vw, 2.5rem)",
-            lineHeight: 1.1,
+            color: "#111111",
+            fontWeight: 600,
+            fontSize: 16,
+            letterSpacing: "-0.01em",
+            gap: 8,
+            textDecoration: "none",
+          }}
+        >
+          <span
+            aria-hidden
+            style={{
+              width: 8,
+              height: 8,
+              background: "#2563eb",
+              borderRadius: 2,
+            }}
+          />
+          StartupSpend
+        </Link>
+
+        <h1
+          style={{
+            marginTop: 28,
+            fontSize: 22,
+            fontWeight: 700,
+            color: "#111111",
             letterSpacing: "-0.012em",
           }}
         >
-          Sign in
+          Sign in to StartupSpend
         </h1>
-        <p className="mt-3 text-[14px] text-ink-muted">
-          Enter your email to continue.
+        <p
+          style={{
+            marginTop: 6,
+            fontSize: 14,
+            color: "#71717a",
+          }}
+        >
+          Enter your email and password to continue.
         </p>
 
         {magicSent ? (
-          <p className="mt-8 border-l-2 border-ink pl-4 text-[14px]">
+          <p
+            style={{
+              marginTop: 24,
+              padding: "12px 14px",
+              borderRadius: 6,
+              background: "#f4f4f5",
+              fontSize: 14,
+              color: "#374151",
+            }}
+          >
             We sent a sign-in link to{" "}
-            <span className="font-medium">{email}</span>. Open it on this
-            device to continue.
+            <span style={{ fontWeight: 600, color: "#111111" }}>{email}</span>.
+            Open it on this device to continue.
           </p>
         ) : (
           <form
             onSubmit={mode === "password" ? submitPassword : submitMagic}
-            className="mt-8 flex flex-col gap-4"
+            style={{
+              marginTop: 24,
+              display: "flex",
+              flexDirection: "column",
+              gap: 14,
+            }}
           >
-            <label className="flex flex-col gap-1.5">
-              <span className="cat-label-muted">Email</span>
+            <Field label="Email">
               <input
                 type="email"
                 required
                 autoComplete="email"
+                placeholder="you@startup.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="field-input"
+                className="light-input"
               />
-            </label>
+            </Field>
 
             {mode === "password" && (
-              <label className="flex flex-col gap-1.5">
-                <span className="cat-label-muted">Password</span>
+              <Field
+                label="Password"
+                right={
+                  <button
+                    type="button"
+                    onClick={() => setMode("magic")}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      padding: 0,
+                      fontSize: 14,
+                      color: "#2563eb",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Forgot password?
+                  </button>
+                }
+              >
                 <input
                   type="password"
                   required
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="field-input"
+                  className="light-input"
                 />
-              </label>
+              </Field>
             )}
 
             {error && (
-              <p className="border-l-2 border-negative pl-3 text-[13px] text-negative">
+              <p
+                style={{
+                  fontSize: 13,
+                  color: "#dc2626",
+                  borderLeft: "2px solid #dc2626",
+                  paddingLeft: 10,
+                }}
+              >
                 {error}
               </p>
             )}
 
-            <button type="submit" disabled={busy} className="btn-primary">
+            <button
+              type="submit"
+              disabled={busy}
+              style={{
+                marginTop: 6,
+                width: "100%",
+                height: 40,
+                background: "#2563eb",
+                color: "#ffffff",
+                fontSize: 15,
+                fontWeight: 500,
+                borderRadius: 6,
+                border: "none",
+                cursor: busy ? "default" : "pointer",
+                opacity: busy ? 0.7 : 1,
+                transition: "background 150ms ease",
+              }}
+            >
               {busy
                 ? "…"
                 : mode === "password"
@@ -171,31 +245,137 @@ function LoginInner() {
                   : "Send sign-in link"}
             </button>
 
-            <button
-              type="button"
-              onClick={() =>
-                setMode(mode === "password" ? "magic" : "password")
-              }
-              className="text-left text-[13px] text-accent underline-offset-4 hover:underline"
-            >
-              {mode === "password"
-                ? "Or send me a magic link"
-                : "Use a password instead"}
-            </button>
+            {mode === "magic" && (
+              <button
+                type="button"
+                onClick={() => setMode("password")}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  fontSize: 14,
+                  color: "#2563eb",
+                  cursor: "pointer",
+                  alignSelf: "flex-start",
+                }}
+              >
+                Use a password instead
+              </button>
+            )}
 
-            <hr className="hr-rule" />
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginTop: 8,
+              }}
+            >
+              <span style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+              <span style={{ fontSize: 12, color: "#a1a1aa" }}>or</span>
+              <span style={{ flex: 1, height: 1, background: "#e5e7eb" }} />
+            </div>
 
             <button
               type="button"
               onClick={signInWithGoogle}
               disabled={busy}
-              className="btn-secondary"
+              style={{
+                width: "100%",
+                height: 40,
+                background: "#ffffff",
+                color: "#111111",
+                fontSize: 15,
+                fontWeight: 500,
+                borderRadius: 6,
+                border: "1px solid #e5e7eb",
+                cursor: "pointer",
+              }}
             >
               Continue with Google
             </button>
           </form>
         )}
-      </section>
+
+        <p
+          style={{
+            marginTop: 28,
+            fontSize: 14,
+            color: "#71717a",
+            textAlign: "center",
+          }}
+        >
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/signup"
+            style={{ color: "#2563eb", fontWeight: 500 }}
+          >
+            Create account
+          </Link>
+        </p>
+      </div>
+
+      <p
+        style={{
+          marginTop: 32,
+          fontSize: 13,
+          color: "#a1a1aa",
+        }}
+      >
+        StartupSpend · Cloud cost intelligence for founders
+      </p>
+
+      <style jsx global>{`
+        .light-input {
+          width: 100%;
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
+          padding: 8px 12px;
+          font-family: var(--font-inter), "Inter", ui-sans-serif, system-ui,
+            sans-serif;
+          font-size: 14px;
+          color: #111111;
+          background: #ffffff;
+          transition: border-color 150ms ease, box-shadow 150ms ease;
+        }
+        .light-input::placeholder {
+          color: #a1a1aa;
+        }
+        .light-input:focus {
+          outline: none;
+          border-color: #2563eb;
+          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+      `}</style>
     </main>
+  );
+}
+
+function Field({
+  label,
+  right,
+  children,
+}: {
+  label: string;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <span
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          fontSize: 14,
+          fontWeight: 500,
+          color: "#374151",
+        }}
+      >
+        <span>{label}</span>
+        {right}
+      </span>
+      {children}
+    </label>
   );
 }

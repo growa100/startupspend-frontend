@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { ThemeToggle } from "./ThemeToggle";
 
 const LINKS = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/history", label: "History" },
   { href: "/connections", label: "Connections" },
   { href: "/subscriptions", label: "Subscriptions" },
   { href: "/resources", label: "Resources" },
@@ -14,50 +16,72 @@ const LINKS = [
 ];
 
 /**
- * FT-style main nav. White background, 64px tall, 1px warm-gray bottom
- * rule. Left-aligned wordmark in Playfair Display. Right-aligned nav
- * links in Inter 13px. Active link gets a 2px FT-red bottom border.
- *
- * Mobile (<768px): nav links are hidden behind a hamburger that opens a
- * full-screen drawer.
+ * Top nav. Black bar (raw bg), wordmark left, links right, theme toggle
+ * far right. Active link gets text-primary with brand-blue underline.
+ * 1px border-bottom in border var separates nav from content.
  */
 export function NavBar() {
   const path = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Close drawer when route changes
   useEffect(() => {
     setDrawerOpen(false);
   }, [path]);
 
   return (
-    <header className="border-b border-rule bg-white">
+    <header
+      style={{
+        background: "var(--nav-bg)",
+        borderBottom: "1px solid var(--nav-border)",
+      }}
+    >
       <div
-        className="mx-auto flex max-w-ft items-center justify-between px-6"
-        style={{ height: "64px" }}
+        className="mx-auto flex max-w-ft items-center justify-between px-8"
+        style={{ height: "56px" }}
       >
         <Link
           href="/dashboard"
-          className="font-display text-[22px] font-medium leading-none tracking-tight text-ink"
+          className="ui-sans inline-flex items-center gap-2 leading-none"
+          style={{
+            color: "var(--text-primary)",
+            fontWeight: 600,
+            fontSize: "16px",
+            letterSpacing: "-0.01em",
+          }}
         >
+          <span
+            aria-hidden
+            style={{
+              width: 8,
+              height: 8,
+              background: "#2563eb",
+              borderRadius: 2,
+            }}
+          />
           StartupSpend
         </Link>
 
-        {/* Desktop nav */}
         <nav className="ui-sans hidden items-center md:flex">
-          <ul className="flex items-center" style={{ gap: "24px" }}>
+          <ul className="flex items-center" style={{ gap: "20px" }}>
             {LINKS.map((l) => {
               const active = path?.startsWith(l.href) ?? false;
               return (
                 <li key={l.href}>
                   <Link
                     href={l.href}
-                    className={
-                      "inline-block py-[20px] text-[13px] text-ink transition-colors hover:text-accent " +
-                      (active
-                        ? "border-b-2 border-accent"
-                        : "border-b-2 border-transparent")
-                    }
+                    className="inline-block transition-colors"
+                    style={{
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: active
+                        ? "var(--text-primary)"
+                        : "var(--text-secondary)",
+                      paddingTop: 18,
+                      paddingBottom: 18,
+                      borderBottom: active
+                        ? "2px solid var(--brand)"
+                        : "2px solid transparent",
+                    }}
                   >
                     {l.label}
                   </Link>
@@ -67,37 +91,62 @@ export function NavBar() {
           </ul>
         </nav>
 
-        {/* Hamburger — mobile only */}
-        <button
-          type="button"
-          aria-label={drawerOpen ? "Close menu" : "Open menu"}
-          aria-expanded={drawerOpen}
-          onClick={() => setDrawerOpen((v) => !v)}
-          className="md:hidden"
-        >
-          <Hamburger open={drawerOpen} />
-        </button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <button
+            type="button"
+            aria-label={drawerOpen ? "Close menu" : "Open menu"}
+            aria-expanded={drawerOpen}
+            onClick={() => setDrawerOpen((v) => !v)}
+            className="md:hidden"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            <Hamburger open={drawerOpen} />
+          </button>
+        </div>
       </div>
 
-      {/* Mobile drawer */}
       {drawerOpen && (
-        <div className="ui-sans fixed inset-0 z-50 bg-bone md:hidden">
+        <div
+          className="ui-sans fixed inset-0 z-50 md:hidden"
+          style={{ background: "#000000" }}
+        >
           <div
-            className="flex items-center justify-between border-b border-rule bg-white px-6"
-            style={{ height: "64px" }}
+            className="flex items-center justify-between px-8"
+            style={{
+              height: "56px",
+              borderBottom: "1px solid #1a1a1a",
+            }}
           >
-            <span className="font-display text-[22px] font-medium text-ink">
+            <span
+              className="ui-sans inline-flex items-center gap-2"
+              style={{
+                color: "var(--text-primary)",
+                fontWeight: 600,
+                fontSize: "16px",
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 8,
+                  height: 8,
+                  background: "#2563eb",
+                  borderRadius: 2,
+                }}
+              />
               StartupSpend
             </span>
             <button
               type="button"
               aria-label="Close menu"
               onClick={() => setDrawerOpen(false)}
+              style={{ color: "var(--text-secondary)" }}
             >
               <Hamburger open />
             </button>
           </div>
-          <nav className="px-6 py-8">
+          <nav className="px-8 py-6">
             <ul className="flex flex-col gap-1">
               {LINKS.map((l) => {
                 const active = path?.startsWith(l.href) ?? false;
@@ -106,10 +155,13 @@ export function NavBar() {
                     <Link
                       href={l.href}
                       onClick={() => setDrawerOpen(false)}
-                      className={
-                        "block border-b border-rule py-4 text-base " +
-                        (active ? "text-accent" : "text-ink")
-                      }
+                      className="block py-3 text-[15px]"
+                      style={{
+                        color: active
+                          ? "var(--text-primary)"
+                          : "var(--text-secondary)",
+                        borderBottom: "1px solid var(--border)",
+                      }}
                     >
                       {l.label}
                     </Link>
@@ -131,8 +183,9 @@ function Hamburger({ open }: { open: boolean }) {
       style={{ width: "20px", height: "16px" }}
     >
       <span
-        className="absolute left-0 right-0 bg-ink"
+        className="absolute left-0 right-0"
         style={{
+          background: "currentColor",
           height: "2px",
           top: open ? "7px" : "0",
           transform: open ? "rotate(45deg)" : "none",
@@ -140,8 +193,9 @@ function Hamburger({ open }: { open: boolean }) {
         }}
       />
       <span
-        className="absolute left-0 right-0 bg-ink"
+        className="absolute left-0 right-0"
         style={{
+          background: "currentColor",
           height: "2px",
           top: "7px",
           opacity: open ? 0 : 1,
@@ -149,8 +203,9 @@ function Hamburger({ open }: { open: boolean }) {
         }}
       />
       <span
-        className="absolute left-0 right-0 bg-ink"
+        className="absolute left-0 right-0"
         style={{
+          background: "currentColor",
           height: "2px",
           top: open ? "7px" : "14px",
           transform: open ? "rotate(-45deg)" : "none",

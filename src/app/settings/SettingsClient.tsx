@@ -56,17 +56,25 @@ export function SettingsClient() {
     <div className="ui-sans">
       <SectionHeader eyebrow="Account" title="Settings" />
 
-      <div className="grid grid-cols-1 gap-12 md:grid-cols-2">
-        <section className="border-t border-rule pt-6">
-          <p className="cat-label-muted">Identity</p>
-          <p className="mt-3 text-[14px] text-ink">{email ?? "—"}</p>
-          <p className="mt-1 text-[12px] text-ink-muted">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <section className="card">
+          <p className="cat-label">Identity</p>
+          <p
+            className="mt-3"
+            style={{ fontSize: 14, color: "var(--text-primary)" }}
+          >
+            {email ?? "—"}
+          </p>
+          <p
+            className="mt-1"
+            style={{ fontSize: 12, color: "var(--text-muted)" }}
+          >
             Changing your email is a follow-up.
           </p>
         </section>
 
-        <section className="border-t border-rule pt-6">
-          <p className="cat-label-muted">Password</p>
+        <section className="card">
+          <p className="cat-label">Password</p>
           <form onSubmit={changePassword} className="mt-3 flex flex-col gap-3">
             <input
               type="password"
@@ -96,11 +104,15 @@ export function SettingsClient() {
             </button>
             {msg && (
               <p
-                className={
-                  msg.kind === "err"
-                    ? "border-l-2 border-negative pl-3 text-[13px] text-negative"
-                    : "border-l-2 border-positive pl-3 text-[13px] text-positive"
-                }
+                className="pl-3"
+                style={{
+                  borderLeft: `2px solid ${msg.kind === "err" ? "var(--negative)" : "var(--positive)"}`,
+                  color:
+                    msg.kind === "err"
+                      ? "var(--negative)"
+                      : "var(--positive)",
+                  fontSize: 13,
+                }}
               >
                 {msg.text}
               </p>
@@ -109,9 +121,13 @@ export function SettingsClient() {
         </section>
       </div>
 
-      <section className="mt-12 border-t border-rule pt-6">
-        <p className="cat-label-muted">Danger</p>
-        <button onClick={deleteAccount} className="btn-secondary mt-3 border-negative text-negative hover:bg-rule">
+      <section className="card mt-4">
+        <p className="cat-label">Danger</p>
+        <button
+          onClick={deleteAccount}
+          className="btn-secondary mt-3"
+          style={{ borderColor: "var(--negative)", color: "var(--negative)" }}
+        >
           Delete account
         </button>
       </section>

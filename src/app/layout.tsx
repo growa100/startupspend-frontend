@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display, Source_Serif_4 } from "next/font/google";
+import { Inter, JetBrains_Mono, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -8,10 +8,9 @@ const inter = Inter({
   display: "swap",
 });
 
-const playfair = Playfair_Display({
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-playfair",
+  variable: "--font-jetbrains-mono",
   display: "swap",
 });
 
@@ -39,6 +38,19 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
 };
 
+// Inline script — runs before paint to set the theme attribute. Default
+// is dark; users who explicitly opted into light keep that preference.
+const noFlashTheme = `
+(function () {
+  try {
+    var saved = localStorage.getItem('ss-theme');
+    if (saved === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    }
+  } catch (_) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: {
@@ -47,8 +59,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${playfair.variable} ${sourceSerif.variable}`}
+      className={`${inter.variable} ${jetbrainsMono.variable} ${sourceSerif.variable}`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: noFlashTheme }} />
+      </head>
       <body>{children}</body>
     </html>
   );

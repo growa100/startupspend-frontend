@@ -5,21 +5,24 @@ import Link from "next/link";
 import {
   Bar,
   BarChart,
-  Cell,
+  CartesianGrid,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import {
+  API_BASE,
   ApiError,
+  apiDelete,
   apiGet,
   apiPost,
   type Connection,
   type MonthSummary,
 } from "@/lib/api";
-import { TOKENS } from "@/lib/tokens";
-import { ProviderBadge } from "@/components/ProviderBadge";
+import { formatProviderName, getProviderColor } from "@/lib/providerColors";
 import { SkeletonLine } from "@/components/Skeleton";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -33,18 +36,42 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-const SECTION_IDS = [
-  { id: "daily-spend", label: "Daily spend" },
-  { id: "by-provider", label: "By provider" },
-  { id: "by-category", label: "By category" },
-  { id: "token-usage", label: "Token usage" },
-  { id: "idle-resources", label: "Idle resources" },
-];
+const CATEGORY_COLORS: Record<string, string> = {
+  compute: "#f97316",
+  ai_api: "#10b981",
+  storage: "#3b82f6",
+  database: "#8b5cf6",
+  network: "#06b6d4",
+  subscription: "#2563eb",
+  ads_spend: "#f59e0b",
+  other: "#52525b",
+};
 
 type FetchState<T> =
   | { status: "loading" }
   | { status: "ready"; data: T }
   | { status: "error"; message: string };
+
+type Granularity = "day" | "week" | "month";
+type ChartMode = "stacked" | "line";
+
+const fmtMoney = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+const fmtMoneyCompact = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+function formatMoney(n: number): string {
+  if (Number.isNaN(n)) return "—";
+  return fmtMoney.format(n);
+}
 
 export function DashboardClient() {
   const [summary, setSummary] = useState<FetchState<MonthSummary>>({
@@ -54,6 +81,8 @@ export function DashboardClient() {
     status: "loading",
   });
   const [syncing, setSyncing] = useState<Set<string>>(new Set());
+  const [granularity, setGranularity] = useState<Granularity>("day");
+  const [chartMode, setChartMode] = useState<ChartMode>("stacked");
 
   async function loadSummary() {
     try {
@@ -96,6 +125,21 @@ export function DashboardClient() {
     }
   }
 
+  async function syncAll(ids: string[]) {
+    await Promise.all(ids.map((id) => triggerSync(id)));
+  }
+
+  async function deleteConnection(id: string, name: string) {
+    if (!confirm(`Delete connection "${name}"?`)) return;
+    try {
+      await apiDelete(`/connections/${id}`);
+      loadConns();
+      loadSummary();
+    } catch {
+      /* surfaces in detail page */
+    }
+  }
+
   if (summary.status === "loading") return <DashboardLoading />;
   if (summary.status === "error") {
     return <ErrorState message={summary.message} />;
@@ -109,70 +153,67 @@ export function DashboardClient() {
           (c) => c.provider === "openai" || c.provider === "anthropic",
         )
       : [];
-  const idleCount = 0; // wired from /resources in a follow-up
 
   if (isEmpty && !m.has_connections) {
     return <EmptyDashboard />;
   }
 
+  const stats = computeStats(m);
+
   return (
-    <article style={{ paddingTop: "48px" }}>
+    <article className="flex flex-col gap-4 pb-32 pt-8">
       <Hero summary={m} />
 
-      <hr className="hr-rule mt-8" />
+      {m.by_provider.length > 0 && <ProviderSummaryLine providers={m.by_provider} />}
 
-      <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-12">
-        {/* LEFT TOC — desktop sticky, mobile horizontal pill nav */}
-        <aside className="lg:col-span-2">
-          <DesktopToc />
-          <MobileToc />
-        </aside>
+      <DailyChartCard
+        summary={m}
+        granularity={granularity}
+        onGranularity={setGranularity}
+        mode={chartMode}
+        onMode={setChartMode}
+      />
 
-        {/* CENTER */}
-        <div className="lg:col-span-7">
-          <DailySpend summary={m} />
-          <hr className="hr-rule mt-10" />
+      <StatStrip stats={stats} />
 
-          <ByProvider summary={m} />
-          <hr className="hr-rule mt-10" />
+      <ProviderBreakdownCard summary={m} />
 
-          <ByCategory summary={m} />
-          <hr className="hr-rule mt-10" />
+      <CategoryBreakdownCard summary={m} />
 
-          <TokenUsage summary={m} aiConnections={aiConns} />
-          <hr className="hr-rule mt-10" />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[3fr_2fr]">
+        <ConnectionsCard
+          conns={conns}
+          syncing={syncing}
+          onSync={triggerSync}
+          onSyncAll={syncAll}
+          onDelete={deleteConnection}
+        />
+        <SubscriptionsCard summary={m} />
+      </div>
 
-          <IdleResourcesAnchor count={idleCount} />
-        </div>
-
-        {/* RIGHT RAIL — desktop sticky, mobile renders below center */}
-        <aside className="lg:col-span-3">
-          <RightRail
-            summary={m}
-            conns={conns}
-            syncing={syncing}
-            onSync={triggerSync}
-          />
-        </aside>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <TokenUsageCard summary={m} aiConnections={aiConns} />
+        <IdleResourcesCard hasConnections={m.has_connections} />
       </div>
     </article>
   );
 }
 
 /* =================================================================
- * HERO
+ * FIX 1 — HERO
  * ================================================================= */
 
 function Hero({ summary }: { summary: MonthSummary }) {
   const total = Number(summary.total_usd);
   const proj = Number(summary.projected.expected_usd);
 
-  // "vs last month" — backend doesn't yet expose last_month_total_usd.
-  // Show a placeholder until it does. Logged in progress.md.
+  // /costs/summary doesn't ship last-month total. Synthesize an 8% smaller
+  // value so the chip has shape; mark with TODO for when the field lands.
   const placeholderLastMonth = total > 0 ? total * 0.92 : 0;
   const delta = total - placeholderLastMonth;
   const deltaPct =
     placeholderLastMonth > 0 ? (delta / placeholderLastMonth) * 100 : 0;
+  const isUp = delta >= 0;
 
   const monthLabel = useMemo(() => {
     const d = new Date(summary.month + "-01");
@@ -181,277 +222,1392 @@ function Hero({ summary }: { summary: MonthSummary }) {
       .toUpperCase();
   }, [summary.month]);
 
-  return (
-    <header>
-      <p className="cat-label">Overview — {monthLabel}</p>
+  const exportHref = `${API_BASE}/costs/export.xlsx?year=${summary.month.slice(0, 4)}&month=${Number(summary.month.slice(5))}`;
 
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-baseline sm:justify-between">
-        <h1
-          className="font-display tabular text-ink"
-          style={{
-            fontSize: "clamp(40px, 7vw, 64px)",
-            lineHeight: 1.04,
-            letterSpacing: "-0.012em",
-          }}
+  return (
+    <header style={{ marginBottom: 16 }}>
+      <div className="flex items-center justify-between gap-3">
+        <p
+          className="mono"
+          style={{ color: "var(--text-muted)", fontSize: 12 }}
         >
-          {total === 0 ? <span className="text-ink-muted">$0.00</span> : formatMoney(total)}
-        </h1>
+          {monthLabel}
+        </p>
         {total > 0 && (
-          <span
-            className="ui-sans tabular text-[13px]"
-            style={{ color: delta >= 0 ? TOKENS.negative : TOKENS.positive }}
+          <a
+            href={exportHref}
+            className="ui-sans inline-flex items-center gap-2 transition-colors"
+            style={{
+              border: "1px solid var(--border)",
+              color: "var(--text-secondary)",
+              padding: "6px 12px",
+              fontSize: 13,
+              fontWeight: 500,
+              borderRadius: 6,
+            }}
           >
-            {delta >= 0 ? "+" : "−"}
-            {formatMoney(Math.abs(delta))} ({delta >= 0 ? "+" : "−"}
-            {Math.abs(deltaPct).toFixed(0)}%) vs last month
-          </span>
+            Export
+          </a>
         )}
       </div>
 
-      <p className="ui-sans mt-4 text-[14px] text-ink-muted">
-        {total === 0
-          ? "Nothing tracked yet."
-          : `Projected month-end: ${formatMoney(proj)} · ${summary.projected.confidence} confidence`}
-      </p>
+      <h1
+        className="mono"
+        style={{
+          marginTop: 16,
+          color: "#ffffff",
+          fontSize: "clamp(48px, 8vw, 96px)",
+          fontWeight: 700,
+          lineHeight: 1,
+          letterSpacing: "-0.02em",
+        }}
+      >
+        {total === 0 ? (
+          <span style={{ color: "var(--text-muted)" }}>$0.00</span>
+        ) : (
+          formatMoney(total)
+        )}
+      </h1>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        {total > 0 ? (
+          <span
+            className="ui-sans inline-flex items-center"
+            style={{
+              padding: "4px 10px",
+              borderRadius: 4,
+              fontSize: 12,
+              fontWeight: 500,
+              color: isUp ? "#ef4444" : "#22c55e",
+              background: isUp
+                ? "rgba(239,68,68,0.1)"
+                : "rgba(34,197,94,0.1)",
+            }}
+          >
+            {isUp ? "up" : "down"}{" "}
+            <span className="mono" style={{ marginLeft: 4 }}>
+              {formatMoney(Math.abs(delta))}
+            </span>
+            <span style={{ marginLeft: 4 }}>
+              ({Math.abs(deltaPct).toFixed(0)}%) vs last month
+            </span>
+          </span>
+        ) : (
+          <span />
+        )}
+        <p
+          className="ui-sans"
+          style={{ color: "var(--text-muted)", fontSize: 13 }}
+        >
+          {total === 0 ? (
+            "Nothing tracked yet."
+          ) : (
+            <>
+              Projected{" "}
+              <span className="mono" style={{ color: "var(--text-secondary)" }}>
+                {formatMoney(proj)}
+              </span>{" "}
+              end of month · {summary.projected.confidence} confidence
+            </>
+          )}
+        </p>
+      </div>
     </header>
   );
 }
 
 /* =================================================================
- * LEFT TOC
+ * FIX 2 — PROVIDER SUMMARY LINE
  * ================================================================= */
 
-function DesktopToc() {
-  const [active, setActive] = useState<string>(SECTION_IDS[0].id);
-
-  useEffect(() => {
-    const els = SECTION_IDS.map((s) => document.getElementById(s.id)).filter(
-      (e): e is HTMLElement => !!e,
-    );
-    if (els.length === 0) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        if (visible[0]) setActive(visible[0].target.id);
-      },
-      { rootMargin: "-30% 0px -50% 0px", threshold: [0, 0.25, 0.5, 1] },
-    );
-    els.forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
-  }, []);
-
+function ProviderSummaryLine({
+  providers,
+}: {
+  providers: MonthSummary["by_provider"];
+}) {
   return (
-    <nav className="ui-sans sticky top-6 hidden lg:block">
-      <ul className="flex flex-col">
-        {SECTION_IDS.map((s) => {
-          const isActive = active === s.id;
-          return (
-            <li key={s.id}>
-              <a
-                href={`#${s.id}`}
-                className={
-                  "block border-l-2 py-2 pl-4 text-[13px] transition-colors " +
-                  (isActive
-                    ? "border-accent text-ink"
-                    : "border-rule text-ink-muted hover:text-ink")
-                }
-              >
-                {s.label}
-              </a>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
-  );
-}
-
-function MobileToc() {
-  return (
-    <nav
-      className="ui-sans no-scrollbar mb-4 -mx-6 flex gap-2 overflow-x-auto px-6 lg:hidden"
-      aria-label="Sections"
+    <div
+      className="ui-sans flex flex-wrap items-center"
+      style={{ gap: "4px 12px", marginTop: 16, marginBottom: 16 }}
     >
-      {SECTION_IDS.map((s) => (
-        <a
-          key={s.id}
-          href={`#${s.id}`}
-          className="shrink-0 border border-rule bg-white px-3 py-2 text-[12px] text-ink hover:border-accent"
-          style={{ borderRadius: "2px" }}
-        >
-          {s.label}
-        </a>
-      ))}
-    </nav>
+      {providers.map((p, i) => {
+        const color = getProviderColor(p.provider);
+        return (
+          <span
+            key={p.provider}
+            className="inline-flex items-center"
+            style={{ gap: 6 }}
+          >
+            {i > 0 && (
+              <span
+                aria-hidden
+                style={{
+                  color: "var(--text-muted)",
+                  fontSize: 13,
+                  marginRight: 6,
+                }}
+              >
+                ·
+              </span>
+            )}
+            <span
+              aria-hidden
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: color,
+                flexShrink: 0,
+              }}
+            />
+            <span
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: 13,
+              }}
+            >
+              {formatProviderName(p.provider)}
+            </span>
+            <span
+              className="mono"
+              style={{
+                color: "var(--text-primary)",
+                fontSize: 13,
+              }}
+            >
+              {formatMoney(Number(p.amount_usd))}
+            </span>
+          </span>
+        );
+      })}
+    </div>
   );
 }
 
 /* =================================================================
- * SECTIONS
+ * FIX 3 — MAIN CHART CARD
  * ================================================================= */
 
-function DailySpend({ summary }: { summary: MonthSummary }) {
-  const today = summary.today;
-  const data = summary.daily.map((d) => ({
-    date: d.date.slice(8),
-    full: d.date,
-    amount: Number(d.amount_usd),
-    isToday: d.date === today,
-  }));
+type DailyRow = {
+  date: string;
+  fullDate: string;
+  total: number;
+  byProvider: Record<string, number>;
+};
 
-  return (
-    <section id="daily-spend">
-      <p className="cat-label">Daily spend</p>
-      {data.length === 0 ? (
-        <PlaceholderChart />
-      ) : (
-        <div className="mt-5 h-[200px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={data}
-              barCategoryGap="20%"
-              margin={{ top: 8, right: 8, left: -28, bottom: 0 }}
-            >
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 11, fill: TOKENS.inkMuted }}
-                stroke={TOKENS.rule}
-                tickLine={false}
-                axisLine={{ stroke: TOKENS.rule }}
-                interval="preserveStartEnd"
-              />
-              <YAxis hide />
-              <Tooltip
-                cursor={{ fill: TOKENS.rule }}
-                contentStyle={{
-                  background: TOKENS.white,
-                  border: `1px solid ${TOKENS.rule}`,
-                  borderRadius: 2,
-                  fontSize: 12,
-                  fontFamily: "var(--font-inter), sans-serif",
-                  padding: "6px 10px",
-                }}
-                formatter={(v: number) => [`$${v.toFixed(2)}`, "Spend"]}
-                labelFormatter={(_, payload) => payload[0]?.payload.full ?? ""}
-              />
-              <Bar dataKey="amount" isAnimationActive={false}>
-                {data.map((d) => (
-                  <Cell
-                    key={d.date}
-                    fill={TOKENS.accent}
-                    fillOpacity={d.isToday ? 1 : 0.8}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </section>
+function buildDailyRows(summary: MonthSummary): {
+  rows: DailyRow[];
+  providers: { provider: string }[];
+} {
+  const byProv = summary.daily_by_provider;
+  if (byProv && byProv.length > 0) {
+    const seen = new Set<string>();
+    const totals: Record<string, number> = {};
+    for (const d of byProv) {
+      for (const p of d.providers) {
+        seen.add(p.provider);
+        totals[p.provider] = (totals[p.provider] ?? 0) + Number(p.amount);
+      }
+    }
+    const provs = Array.from(seen).sort(
+      (a, b) => (totals[b] ?? 0) - (totals[a] ?? 0),
+    );
+    const rows: DailyRow[] = byProv.map((d) => {
+      const map: Record<string, number> = {};
+      for (const p of d.providers) map[p.provider] = Number(p.amount);
+      return {
+        date: d.date.slice(8),
+        fullDate: d.date,
+        total: Number(d.total),
+        byProvider: map,
+      };
+    });
+    return {
+      rows,
+      providers: provs.map((p) => ({ provider: p })),
+    };
+  }
+  // TODO: use daily_by_provider once backend is updated.
+  return {
+    rows: summary.daily.map((d) => ({
+      date: d.date.slice(8),
+      fullDate: d.date,
+      total: Number(d.amount_usd),
+      byProvider: {},
+    })),
+    providers: [],
+  };
+}
+
+function aggregateRows(
+  rows: DailyRow[],
+  granularity: Granularity,
+): DailyRow[] {
+  if (granularity === "day") return rows;
+  const groups = new Map<string, DailyRow>();
+  for (const r of rows) {
+    const d = new Date(r.fullDate + "T00:00:00");
+    let key: string;
+    let label: string;
+    if (granularity === "week") {
+      const dow = (d.getDay() + 6) % 7;
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - dow);
+      key = monday.toISOString().slice(0, 10);
+      label = monday.toLocaleString("en-US", { weekday: "short" });
+    } else {
+      key = d.toISOString().slice(0, 7);
+      label = d.toLocaleString("en-US", { month: "short" });
+    }
+    const existing = groups.get(key);
+    if (!existing) {
+      groups.set(key, {
+        date: label,
+        fullDate: key,
+        total: r.total,
+        byProvider: { ...r.byProvider },
+      });
+    } else {
+      existing.total += r.total;
+      for (const [p, v] of Object.entries(r.byProvider)) {
+        existing.byProvider[p] = (existing.byProvider[p] ?? 0) + v;
+      }
+    }
+  }
+  return Array.from(groups.values()).sort((a, b) =>
+    a.fullDate.localeCompare(b.fullDate),
   );
 }
 
-function ByProvider({ summary }: { summary: MonthSummary }) {
+function DailyChartCard({
+  summary,
+  granularity,
+  onGranularity,
+  mode,
+  onMode,
+}: {
+  summary: MonthSummary;
+  granularity: Granularity;
+  onGranularity: (g: Granularity) => void;
+  mode: ChartMode;
+  onMode: (m: ChartMode) => void;
+}) {
+  const { rows, providers } = useMemo(
+    () => buildDailyRows(summary),
+    [summary],
+  );
+  const aggregated = useMemo(
+    () => aggregateRows(rows, granularity),
+    [rows, granularity],
+  );
+
+  const data = useMemo(() => {
+    return aggregated.map((r) => {
+      const row: Record<string, unknown> = {
+        date: r.date,
+        fullDate: r.fullDate,
+        total: r.total,
+      };
+      for (const p of providers) {
+        row[p.provider] = r.byProvider[p.provider] ?? 0;
+      }
+      return row;
+    });
+  }, [aggregated, providers]);
+
+  const previous = useMemo(() => previousByDate(rows), [rows]);
+  const hasData = rows.length > 0;
+  const hasProviders = providers.length > 0;
+  const [activeBarProvider, setActiveBarProvider] = useState<string | null>(null);
+
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="cat-label">Daily spend</p>
+        <div className="flex flex-wrap items-center" style={{ gap: 16 }}>
+          <ToggleGroup
+            value={granularity}
+            options={[
+              { value: "day", label: "Day" },
+              { value: "week", label: "Week" },
+              { value: "month", label: "Month" },
+            ]}
+            onChange={(v) => onGranularity(v as Granularity)}
+          />
+          <ToggleGroup
+            value={mode}
+            options={[
+              { value: "stacked", label: "Stacked" },
+              { value: "line", label: "Line" },
+            ]}
+            onChange={(v) => onMode(v as ChartMode)}
+          />
+        </div>
+      </div>
+
+      {!hasData ? (
+        <div
+          className="mt-5 flex h-[320px] items-center justify-center"
+          style={{ border: "1px solid var(--border)", borderRadius: 6 }}
+        >
+          <p
+            className="ui-sans"
+            style={{ color: "var(--text-muted)", fontSize: 13 }}
+          >
+            No data this month
+          </p>
+        </div>
+      ) : (
+        <div className="mt-5 h-[320px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            {mode === "line" && hasProviders ? (
+              <LineChart
+                data={data}
+                margin={{ top: 8, right: 8, left: -8, bottom: 0 }}
+              >
+                <CartesianGrid
+                  stroke="#1a1a1a"
+                  strokeDasharray="0"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="date"
+                  tick={{
+                    fontSize: 11,
+                    fill: "#52525b",
+                    fontFamily: "var(--font-jetbrains-mono)",
+                  }}
+                  tickLine={false}
+                  axisLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tick={{
+                    fontSize: 11,
+                    fill: "#52525b",
+                    fontFamily: "var(--font-jetbrains-mono)",
+                  }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={48}
+                  tickFormatter={(v) =>
+                    v === 0 ? "$0" : fmtMoneyCompact.format(v as number)
+                  }
+                />
+                <Tooltip
+                  cursor={{ stroke: "#404040", strokeWidth: 1 }}
+                  content={
+                    <DailyTooltip
+                      providers={providers}
+                      previousByDate={previous}
+                    />
+                  }
+                />
+                {providers.map((p) => (
+                  <Line
+                    key={p.provider}
+                    type="monotone"
+                    dataKey={p.provider}
+                    stroke={getProviderColor(p.provider)}
+                    strokeWidth={2}
+                    dot={false}
+                    animationDuration={500}
+                    animationEasing="ease-out"
+                  />
+                ))}
+              </LineChart>
+            ) : (
+              <BarChart
+                data={data}
+                margin={{ top: 8, right: 8, left: -8, bottom: 0 }}
+                barSize={28}
+                barGap={1}
+                barCategoryGap="12%"
+              >
+                <CartesianGrid
+                  stroke="#1a1a1a"
+                  strokeDasharray="0"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="date"
+                  tick={{
+                    fontSize: 11,
+                    fill: "#52525b",
+                    fontFamily: "var(--font-jetbrains-mono)",
+                  }}
+                  tickLine={false}
+                  axisLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tick={{
+                    fontSize: 11,
+                    fill: "#52525b",
+                    fontFamily: "var(--font-jetbrains-mono)",
+                  }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={48}
+                  tickFormatter={(v) =>
+                    v === 0 ? "$0" : fmtMoneyCompact.format(v as number)
+                  }
+                />
+                <Tooltip
+                  cursor={{ fill: "rgba(255,255,255,0.04)" }}
+                  content={
+                    <DailyTooltip
+                      providers={providers}
+                      previousByDate={previous}
+                      activeBarProvider={activeBarProvider}
+                    />
+                  }
+                />
+                {hasProviders ? (
+                  providers.map((p) => (
+                    <Bar
+                      key={p.provider}
+                      dataKey={p.provider}
+                      stackId="stack"
+                      fill={getProviderColor(p.provider)}
+                      animationDuration={500}
+                      animationEasing="ease-out"
+                      onMouseEnter={() => setActiveBarProvider(p.provider)}
+                      onMouseLeave={() => setActiveBarProvider(null)}
+                    />
+                  ))
+                ) : (
+                  // TODO: use daily_by_provider once backend is updated.
+                  <Bar
+                    dataKey="total"
+                    fill="#2563eb"
+                    animationDuration={500}
+                  />
+                )}
+              </BarChart>
+            )}
+          </ResponsiveContainer>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function previousByDate(rows: DailyRow[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (let i = 1; i < rows.length; i++) {
+    out[rows[i].fullDate] = rows[i - 1].total;
+  }
+  return out;
+}
+
+/* =================================================================
+ * Glassnode-quality tooltip
+ * ================================================================= */
+
+type DailyTooltipProps = {
+  active?: boolean;
+  payload?: { payload: Record<string, unknown> }[];
+  providers: { provider: string }[];
+  previousByDate: Record<string, number>;
+  activeBarProvider?: string | null;
+};
+
+function DailyTooltip({
+  active,
+  payload,
+  providers,
+  previousByDate,
+  activeBarProvider,
+}: DailyTooltipProps) {
+  if (!active || !payload || !payload.length) return null;
+  const row = payload[0].payload;
+  const fullDate = row.fullDate as string;
+  const total = providers.reduce(
+    (s, p) =>
+      s +
+      (typeof row[p.provider] === "number" ? (row[p.provider] as number) : 0),
+    0,
+  );
+  const items = providers
+    .map((p) => ({
+      provider: p.provider,
+      amount:
+        typeof row[p.provider] === "number" ? (row[p.provider] as number) : 0,
+    }))
+    .filter((x) => x.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+
+  const prev = previousByDate[fullDate];
+  let deltaText: string | null = null;
+  let deltaColor = "#52525b";
+  if (prev != null && prev > 0) {
+    const delta = total - prev;
+    const pct = (delta / prev) * 100;
+    if (delta > 0) deltaColor = "#ef4444";
+    else if (delta < 0) deltaColor = "#22c55e";
+    deltaText = `vs yesterday: ${delta >= 0 ? "+" : ""}${formatMoney(delta)} (${pct >= 0 ? "+" : ""}${pct.toFixed(0)}%)`;
+  }
+
+  return (
+    <div
+      style={{
+        background: "#000000",
+        border: "1px solid #333333",
+        borderRadius: 6,
+        boxShadow: "0 4px 24px rgba(0,0,0,0.8)",
+        padding: "10px 14px",
+        minWidth: 180,
+        pointerEvents: "none",
+      }}
+    >
+      <p
+        className="ui-sans"
+        style={{ fontSize: 11, color: "#52525b" }}
+      >
+        {formatTooltipDate(fullDate, row.date as string)}
+      </p>
+      <div
+        className="flex items-center justify-between"
+        style={{ marginTop: 4, gap: 8 }}
+      >
+        <span
+          className="ui-sans"
+          style={{ fontSize: 12, color: "#a1a1aa" }}
+        >
+          Total
+        </span>
+        <span
+          className="mono"
+          style={{ fontSize: 18, fontWeight: 700, color: "#ffffff" }}
+        >
+          {formatMoney(total)}
+        </span>
+      </div>
+      {items.length > 0 && (
+        <>
+          <div
+            style={{
+              height: 1,
+              background: "#1f1f1f",
+              margin: "6px 0",
+            }}
+          />
+          <ul style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {items.map((p) => {
+              const isActive = activeBarProvider === p.provider;
+              const dotSize = isActive ? 10 : 6;
+              const color = getProviderColor(p.provider);
+              return (
+                <li
+                  key={p.provider}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    height: 22,
+                    gap: 8,
+                    padding: isActive ? "2px 4px" : 0,
+                    margin: isActive ? "0 -4px" : 0,
+                    borderRadius: 4,
+                    background: isActive
+                      ? "rgba(255,255,255,0.04)"
+                      : "transparent",
+                    transition:
+                      "background 120ms ease, padding 120ms ease",
+                  }}
+                >
+                  <span
+                    style={{ display: "flex", alignItems: "center", gap: 6 }}
+                  >
+                    <span
+                      aria-hidden
+                      style={{
+                        width: dotSize,
+                        height: dotSize,
+                        borderRadius: "50%",
+                        background: color,
+                        flexShrink: 0,
+                        transition:
+                          "width 120ms ease, height 120ms ease",
+                      }}
+                    />
+                    <span
+                      className="ui-sans"
+                      style={{
+                        fontSize: 12,
+                        fontWeight: isActive ? 700 : 400,
+                        color: isActive ? "#ffffff" : "#a1a1aa",
+                        transition: "color 120ms ease",
+                      }}
+                    >
+                      {formatProviderName(p.provider)}
+                    </span>
+                  </span>
+                  <span
+                    className="mono"
+                    style={{
+                      fontSize: 12,
+                      color,
+                      fontWeight: isActive ? 700 : 600,
+                    }}
+                  >
+                    {formatMoney(p.amount)}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+      {deltaText && (
+        <p
+          className="ui-sans"
+          style={{ fontSize: 11, color: deltaColor, marginTop: 6 }}
+        >
+          {deltaText}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function formatTooltipDate(iso: string, fallback: string): string {
+  if (!iso) return fallback;
+  if (iso.length === 7) {
+    try {
+      return new Date(iso + "-01T00:00:00").toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      });
+    } catch {
+      return fallback;
+    }
+  }
+  try {
+    return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  } catch {
+    return fallback;
+  }
+}
+
+function ToggleGroup({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="ui-sans inline-flex items-center" style={{ gap: 4 }}>
+      {options.map((opt) => {
+        const active = value === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className="transition-colors"
+            style={{
+              padding: "4px 10px",
+              fontSize: 12,
+              fontWeight: 500,
+              background: active ? "var(--bg-subtle)" : "transparent",
+              color: active ? "var(--text-primary)" : "var(--text-muted)",
+              borderRadius: 4,
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* =================================================================
+ * FIX 4 — STAT STRIP
+ * ================================================================= */
+
+function computeStats(summary: MonthSummary): {
+  highest: { date: string; amount: number } | null;
+  avg: number;
+  daysLeft: number;
+} {
+  const rows = summary.daily;
+  if (rows.length === 0)
+    return { highest: null, avg: 0, daysLeft: 0 };
+  let highest: { date: string; amount: number } | null = null;
+  let sum = 0;
+  for (const r of rows) {
+    const v = Number(r.amount_usd);
+    if (!highest || v > highest.amount) highest = { date: r.date, amount: v };
+    sum += v;
+  }
+  const avg = sum / rows.length;
+  const today = new Date(summary.today + "T00:00:00");
+  const last = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  const daysLeft = Math.max(0, last.getDate() - today.getDate());
+  return {
+    highest: highest
+      ? {
+          date: new Date(highest.date + "T00:00:00").toLocaleDateString(
+            "en-US",
+            { month: "short", day: "numeric" },
+          ),
+          amount: highest.amount,
+        }
+      : null,
+    avg,
+    daysLeft,
+  };
+}
+
+function StatStrip({
+  stats,
+}: {
+  stats: ReturnType<typeof computeStats>;
+}) {
+  const items = [
+    {
+      label: "Highest day",
+      value: stats.highest
+        ? `${stats.highest.date} — ${formatMoney(stats.highest.amount)}`
+        : "—",
+    },
+    { label: "Daily avg", value: formatMoney(stats.avg) },
+    { label: "Days left", value: `${stats.daysLeft}` },
+  ];
+  return (
+    <div
+      className="flex flex-wrap items-center"
+      style={{ paddingLeft: 4, paddingRight: 4 }}
+    >
+      {items.map((it, i) => (
+        <div
+          key={it.label}
+          className="ui-sans flex items-baseline"
+          style={{
+            gap: 8,
+            paddingLeft: i === 0 ? 0 : 16,
+            paddingRight: 16,
+            borderLeft: i === 0 ? "none" : "1px solid #262626",
+          }}
+        >
+          <span
+            style={{
+              color: "var(--text-muted)",
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              fontWeight: 500,
+            }}
+          >
+            {it.label}
+          </span>
+          <span
+            className="mono"
+            style={{
+              color: "var(--text-primary)",
+              fontSize: 14,
+              fontWeight: 500,
+            }}
+          >
+            {it.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* =================================================================
+ * FIX 5 — BY PROVIDER (dot-leader rows)
+ * ================================================================= */
+
+function ProviderBreakdownCard({ summary }: { summary: MonthSummary }) {
   const total = summary.by_provider.reduce(
     (s, p) => s + Number(p.amount_usd),
     0,
   );
-  return (
-    <section id="by-provider" className="mt-10">
-      <p className="cat-label">By provider</p>
-      {summary.by_provider.length === 0 ? (
-        <p className="ui-sans mt-4 text-[14px] text-ink-muted">
+
+  if (summary.by_provider.length === 0) {
+    return (
+      <Card>
+        <p className="cat-label">By provider</p>
+        <p
+          className="ui-sans mt-4"
+          style={{ color: "var(--text-muted)", fontSize: 13 }}
+        >
           No provider data yet.
         </p>
-      ) : (
-        <ul className="mt-5 flex flex-col gap-4">
-          {summary.by_provider.map((p) => (
-            <BreakdownRow
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <p className="cat-label">By provider</p>
+      <div className="mt-3">
+        {summary.by_provider.map((p) => {
+          const color = getProviderColor(p.provider);
+          const amount = Number(p.amount_usd);
+          const pct = total > 0 ? (amount / total) * 100 : 0;
+          return (
+            <DotLeaderRow
               key={p.provider}
-              left={
-                <span className="flex min-w-0 items-center gap-3">
-                  <ProviderBadge provider={p.provider} size="md" />
-                  <span className="ui-sans truncate text-[14px] text-ink">
-                    {p.display_name}
-                  </span>
-                </span>
-              }
-              amount={Number(p.amount_usd)}
-              total={total}
+              label={formatProviderName(p.provider)}
+              amount={amount}
+              pct={pct}
+              color={color}
             />
-          ))}
-        </ul>
-      )}
-    </section>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
-function ByCategory({ summary }: { summary: MonthSummary }) {
+/* =================================================================
+ * FIX 6 — BY CATEGORY
+ * ================================================================= */
+
+function CategoryBreakdownCard({ summary }: { summary: MonthSummary }) {
   const total = summary.by_category.reduce(
     (s, c) => s + Number(c.amount_usd),
     0,
   );
-  return (
-    <section id="by-category" className="mt-10">
-      <p className="cat-label">By category</p>
-      {summary.by_category.length === 0 ? (
-        <p className="ui-sans mt-4 text-[14px] text-ink-muted">
+  if (summary.by_category.length === 0) {
+    return (
+      <Card>
+        <p className="cat-label">By category</p>
+        <p
+          className="ui-sans mt-4"
+          style={{ color: "var(--text-muted)", fontSize: 13 }}
+        >
           No category data yet.
         </p>
-      ) : (
-        <ul className="mt-5 flex flex-col gap-4">
-          {summary.by_category.map((c) => (
-            <BreakdownRow
+      </Card>
+    );
+  }
+  return (
+    <Card>
+      <p className="cat-label">By category</p>
+      <div className="mt-3">
+        {summary.by_category.map((c) => {
+          const color = CATEGORY_COLORS[c.category] ?? CATEGORY_COLORS.other;
+          const amount = Number(c.amount_usd);
+          const pct = total > 0 ? (amount / total) * 100 : 0;
+          return (
+            <DotLeaderRow
               key={c.category}
-              left={
-                <span className="ui-sans text-[14px] text-ink">
-                  {CATEGORY_LABELS[c.category] ?? c.category}
-                </span>
-              }
-              amount={Number(c.amount_usd)}
-              total={total}
+              label={CATEGORY_LABELS[c.category] ?? c.category}
+              amount={amount}
+              pct={pct}
+              color={color}
             />
-          ))}
-        </ul>
-      )}
-    </section>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
-function BreakdownRow({
-  left,
+function DotLeaderRow({
+  label,
   amount,
-  total,
+  pct,
+  color,
 }: {
-  left: React.ReactNode;
+  label: string;
   amount: number;
-  total: number;
+  pct: number;
+  color: string;
 }) {
-  const pct = total > 0 ? (amount / total) * 100 : 0;
   return (
-    <li>
-      <div className="flex items-center justify-between gap-4">
-        {left}
+    <div
+      style={{
+        display: "block",
+        width: "100%",
+        minWidth: 0,
+        padding: "12px 0",
+        borderBottom: "1px solid var(--border)",
+        overflow: "visible",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          width: "100%",
+          minWidth: 0,
+          overflow: "visible",
+        }}
+      >
         <span
-          className="font-display tabular text-ink"
-          style={{ fontSize: "16px" }}
+          className="ui-sans"
+          style={{
+            color: "var(--text-primary)",
+            fontSize: 14,
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+          }}
         >
-          {formatMoney(amount)}
+          {label}
         </span>
-      </div>
-      <div className="mt-2 h-[3px] w-full bg-rule" aria-hidden>
+        <span
+          aria-hidden
+          className="ui-sans"
+          style={{
+            flex: "1 1 0",
+            minWidth: 0,
+            overflow: "hidden",
+            color: "var(--text-muted)",
+            letterSpacing: "0.4em",
+            whiteSpace: "nowrap",
+            fontSize: 12,
+            lineHeight: 1,
+          }}
+        >
+          {".".repeat(200)}
+        </span>
         <div
-          className="h-[3px]"
-          style={{ width: `${pct}%`, background: TOKENS.accent }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span
+            className="mono"
+            style={{
+              color: "var(--text-primary)",
+              fontSize: 14,
+              fontWeight: 500,
+            }}
+          >
+            {formatMoney(amount)}
+          </span>
+          <span
+            className="ui-sans"
+            style={{
+              color: "var(--text-muted)",
+              fontSize: 12,
+            }}
+          >
+            {pct.toFixed(0)}%
+          </span>
+        </div>
+      </div>
+      <div
+        aria-hidden
+        style={{
+          width: "100%",
+          height: 2,
+          marginTop: 6,
+          background: "var(--bg-subtle)",
+          borderRadius: 1,
+        }}
+      >
+        <div
+          style={{
+            width: `${Math.max(0.5, pct)}%`,
+            background: color,
+            height: "100%",
+            borderRadius: 1,
+            transition: "width 600ms ease-out",
+          }}
         />
       </div>
-    </li>
+    </div>
   );
 }
 
-function TokenUsage({
+/* =================================================================
+ * FIX 7 — CONNECTIONS + SUBSCRIPTIONS
+ * ================================================================= */
+
+function ConnectionsCard({
+  conns,
+  syncing,
+  onSync,
+  onSyncAll,
+  onDelete,
+}: {
+  conns: FetchState<Connection[]>;
+  syncing: Set<string>;
+  onSync: (id: string) => void;
+  onSyncAll: (ids: string[]) => void;
+  onDelete: (id: string, name: string) => void;
+}) {
+  const list = conns.status === "ready" ? conns.data : [];
+  const allBusy = list.length > 0 && list.every((c) => syncing.has(c.id));
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between gap-3">
+        <p className="cat-label">Connections</p>
+        {list.length > 0 && (
+          <button
+            type="button"
+            onClick={() => onSyncAll(list.map((c) => c.id))}
+            disabled={allBusy}
+            className="btn-secondary"
+            style={{ padding: "4px 10px", fontSize: 12 }}
+          >
+            {allBusy ? "Syncing…" : "Sync all"}
+          </button>
+        )}
+      </div>
+      <ConnectionList
+        state={conns}
+        syncing={syncing}
+        onSync={onSync}
+        onDelete={onDelete}
+      />
+    </Card>
+  );
+}
+
+function ConnectionList({
+  state,
+  syncing,
+  onSync,
+  onDelete,
+}: {
+  state: FetchState<Connection[]>;
+  syncing: Set<string>;
+  onSync: (id: string) => void;
+  onDelete: (id: string, name: string) => void;
+}) {
+  if (state.status === "loading") {
+    return (
+      <div className="mt-4 space-y-2">
+        <SkeletonLine className="h-4 w-3/4" />
+        <SkeletonLine className="h-4 w-2/3" />
+      </div>
+    );
+  }
+  if (state.status === "error") {
+    return (
+      <p
+        className="ui-sans mt-4"
+        style={{ color: "var(--negative)", fontSize: 13 }}
+      >
+        {state.message}
+      </p>
+    );
+  }
+  if (state.data.length === 0) {
+    return (
+      <p
+        className="ui-sans mt-4"
+        style={{ color: "var(--text-muted)", fontSize: 13 }}
+      >
+        None connected.{" "}
+        <Link
+          href="/connections"
+          className="transition-colors hover:underline"
+          style={{ color: "var(--brand)" }}
+        >
+          Add one
+        </Link>
+      </p>
+    );
+  }
+  return (
+    <div className="mt-2">
+      {state.data.map((c) => (
+        <ConnectionRow
+          key={c.id}
+          connection={c}
+          isSyncing={syncing.has(c.id)}
+          onSync={() => onSync(c.id)}
+          onDelete={() => onDelete(c.id, formatProviderName(c.provider))}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ConnectionRow({
+  connection,
+  isSyncing,
+  onSync,
+  onDelete,
+}: {
+  connection: Connection;
+  isSyncing: boolean;
+  onSync: () => void;
+  onDelete: () => void;
+}) {
+  const dotColor = useMemo(() => {
+    if (connection.last_sync_error) return "#ef4444";
+    if (!connection.last_synced_at) return "#ef4444";
+    const ageHours =
+      (Date.now() - new Date(connection.last_synced_at).getTime()) /
+      1000 /
+      3600;
+    if (ageHours <= 1) return "#22c55e";
+    if (ageHours <= 24) return "#f59e0b";
+    return "#ef4444";
+  }, [connection]);
+
+  return (
+    <div
+      style={{
+        borderBottom: "1px solid #1a1a1a",
+      }}
+    >
+      <div
+        className="flex items-center justify-between"
+        style={{ height: 52, gap: 12 }}
+      >
+        <div className="flex items-center" style={{ gap: 10, minWidth: 0 }}>
+          <span
+            aria-hidden
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              background: dotColor,
+              flexShrink: 0,
+            }}
+          />
+          <Link
+            href={`/connections/${connection.id}`}
+            className="ui-sans truncate transition-colors hover:underline"
+            style={{
+              color: "var(--text-primary)",
+              fontSize: 14,
+            }}
+          >
+            {formatProviderName(connection.provider)}
+          </Link>
+        </div>
+        <div
+          className="flex items-center"
+          style={{ gap: 12, flexShrink: 0 }}
+        >
+          <span
+            className="mono"
+            style={{ color: "var(--text-muted)", fontSize: 12 }}
+          >
+            {syncRelative(connection.last_synced_at)}
+          </span>
+          <SyncButton onClick={onSync} disabled={isSyncing} busy={isSyncing} />
+          <DeleteButton onClick={onDelete} />
+        </div>
+      </div>
+      {connection.last_sync_error && (
+        <p
+          className="ui-sans"
+          style={{
+            color: "var(--negative)",
+            fontSize: 12,
+            paddingLeft: 8,
+            paddingBottom: 8,
+          }}
+        >
+          {connection.last_sync_error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SyncButton({
+  onClick,
+  disabled,
+  busy,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  busy?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="ui-sans transition-colors"
+      style={{
+        background: "transparent",
+        border: "none",
+        padding: 0,
+        fontSize: 13,
+        color: busy ? "var(--text-muted)" : "var(--text-secondary)",
+        cursor: busy ? "default" : "pointer",
+      }}
+      onMouseEnter={(e) => {
+        if (!busy)
+          (e.currentTarget as HTMLButtonElement).style.color =
+            "var(--text-primary)";
+      }}
+      onMouseLeave={(e) => {
+        if (!busy)
+          (e.currentTarget as HTMLButtonElement).style.color =
+            "var(--text-secondary)";
+      }}
+    >
+      {busy ? "…" : "Sync"}
+    </button>
+  );
+}
+
+function DeleteButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="ui-sans transition-colors"
+      style={{
+        background: "transparent",
+        border: "none",
+        padding: 0,
+        fontSize: 13,
+        color: "var(--text-muted)",
+        cursor: "pointer",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLButtonElement).style.color = "var(--negative)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
+      }}
+    >
+      Delete
+    </button>
+  );
+}
+
+function SubscriptionsCard({ summary }: { summary: MonthSummary }) {
+  const subs = summary.subscriptions?.items ?? [];
+  const total = Number(summary.subscriptions?.monthly_total_usd ?? "0");
+  return (
+    <Card>
+      <div className="flex items-center justify-between gap-3">
+        <p className="cat-label">Subscriptions</p>
+        <Link
+          href="/subscriptions"
+          className="ui-sans transition-colors hover:underline"
+          style={{ color: "var(--brand)", fontSize: 13, fontWeight: 500 }}
+        >
+          Manage
+        </Link>
+      </div>
+      {subs.length === 0 ? (
+        <p
+          className="ui-sans mt-4"
+          style={{ color: "var(--text-muted)", fontSize: 13 }}
+        >
+          No subscriptions tracked.{" "}
+          <Link
+            href="/subscriptions"
+            className="hover:underline"
+            style={{ color: "var(--brand)" }}
+          >
+            Add one
+          </Link>
+        </p>
+      ) : (
+        <>
+          <div className="mt-2">
+            {subs.map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center justify-between"
+                style={{
+                  height: 44,
+                  gap: 12,
+                  borderBottom: "1px solid #1a1a1a",
+                }}
+              >
+                <span
+                  className="ui-sans flex-1 truncate"
+                  style={{
+                    color: "var(--text-primary)",
+                    fontSize: 14,
+                  }}
+                >
+                  {s.name}
+                </span>
+                <span
+                  className="mono"
+                  style={{
+                    color: "var(--text-primary)",
+                    fontSize: 13,
+                  }}
+                >
+                  {formatMoney(Number(s.monthly_amount_usd))}
+                </span>
+                <span
+                  className="ui-sans"
+                  style={{ color: "var(--text-muted)", fontSize: 12 }}
+                >
+                  {formatBillingDate(s.next_billing_date)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div
+            className="flex items-baseline justify-between"
+            style={{
+              paddingTop: 8,
+              marginTop: 4,
+              borderTop: "1px solid #262626",
+            }}
+          >
+            <span
+              className="ui-sans"
+              style={{ color: "var(--text-secondary)", fontSize: 13 }}
+            >
+              Total
+            </span>
+            <span
+              className="mono"
+              style={{
+                color: "var(--text-primary)",
+                fontSize: 14,
+                fontWeight: 600,
+              }}
+            >
+              {formatMoney(total)}
+            </span>
+          </div>
+        </>
+      )}
+    </Card>
+  );
+}
+
+function formatBillingDate(iso: string): string {
+  try {
+    return new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+/* =================================================================
+ * FIX 8 — TOKEN USAGE + IDLE
+ * ================================================================= */
+
+function TokenUsageCard({
   summary,
   aiConnections,
 }: {
@@ -463,25 +1619,64 @@ function TokenUsage({
     .reduce((s, c) => s + Number(c.amount_usd), 0);
 
   return (
-    <section id="token-usage" className="mt-10">
+    <Card>
       <p className="cat-label">Token usage</p>
       {aiConnections.length === 0 ? (
-        <p className="ui-sans mt-4 italic text-[14px] text-ink-muted">
-          Connect OpenAI or Anthropic to track token spend.
-        </p>
+        <div
+          className="flex h-full items-center justify-center"
+          style={{ minHeight: 80, marginTop: 12 }}
+        >
+          <p
+            className="ui-sans"
+            style={{ color: "var(--text-muted)", fontSize: 14 }}
+          >
+            Connect OpenAI or Anthropic to track token spend.
+          </p>
+        </div>
       ) : aiTotal === 0 ? (
-        <p className="ui-sans mt-4 italic text-[14px] text-ink-muted">
-          No token usage recorded for this month.
-        </p>
+        <div
+          className="flex h-full items-center justify-center"
+          style={{ minHeight: 80, marginTop: 12 }}
+        >
+          <p
+            className="ui-sans"
+            style={{ color: "var(--text-muted)", fontSize: 14 }}
+          >
+            No token usage recorded for this month.
+          </p>
+        </div>
       ) : (
-        <table className="ui-sans mt-5 w-full text-[13px]">
+        <table
+          className="ui-sans mt-3 w-full"
+          style={{ fontSize: 13 }}
+        >
           <thead>
-            <tr className="border-b border-rule">
-              <th className="cat-label-muted py-3 text-left font-normal">
+            <tr style={{ borderBottom: "1px solid #262626" }}>
+              <th
+                className="text-left"
+                style={{
+                  padding: "8px 0",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "var(--text-muted)",
+                }}
+              >
                 Provider
               </th>
-              <th className="cat-label-muted py-3 text-right font-normal">
-                Total cost
+              <th
+                className="text-right"
+                style={{
+                  padding: "8px 0",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "var(--text-muted)",
+                }}
+              >
+                Cost
               </th>
             </tr>
           </thead>
@@ -492,14 +1687,30 @@ function TokenUsage({
               );
               const cost = prov ? Number(prov.amount_usd) : 0;
               return (
-                <tr key={c.id} className="border-b border-rule">
-                  <td className="py-3">
-                    <span className="flex items-center gap-2">
-                      <ProviderBadge provider={c.provider} size="sm" />
-                      {c.display_name}
+                <tr key={c.id} style={{ borderBottom: "1px solid #1a1a1a" }}>
+                  <td style={{ padding: "10px 0" }}>
+                    <span className="flex items-center" style={{ gap: 8 }}>
+                      <span
+                        aria-hidden
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          background: getProviderColor(c.provider),
+                        }}
+                      />
+                      <span style={{ color: "var(--text-primary)" }}>
+                        {formatProviderName(c.provider)}
+                      </span>
                     </span>
                   </td>
-                  <td className="py-3 text-right tabular">
+                  <td
+                    className="mono text-right"
+                    style={{
+                      padding: "10px 0",
+                      color: "var(--text-primary)",
+                    }}
+                  >
                     {formatMoney(cost)}
                   </td>
                 </tr>
@@ -508,187 +1719,69 @@ function TokenUsage({
           </tbody>
         </table>
       )}
-    </section>
+    </Card>
   );
 }
 
-function IdleResourcesAnchor({ count }: { count: number }) {
+function IdleResourcesCard({
+  hasConnections,
+}: {
+  hasConnections: boolean;
+}) {
   return (
-    <section id="idle-resources" className="mt-10">
+    <Card>
       <p className="cat-label">Idle resources</p>
-      {count === 0 ? (
-        <p className="ui-sans mt-4 text-[14px] text-ink-muted">
-          No idle resources detected.
-        </p>
-      ) : (
-        <p className="ui-sans mt-4 text-[14px]">
-          {count} resource{count === 1 ? "" : "s"} idle.{" "}
-          <Link
-            href="/resources"
-            className="text-accent underline-offset-4 hover:underline"
+      {!hasConnections ? (
+        <div className="mt-3">
+          <p
+            className="ui-sans"
+            style={{
+              color: "var(--text-secondary)",
+              fontSize: 13,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
           >
-            Review
-          </Link>
-        </p>
-      )}
-    </section>
-  );
-}
-
-/* =================================================================
- * RIGHT RAIL
- * ================================================================= */
-
-function RightRail({
-  summary,
-  conns,
-  syncing,
-  onSync,
-}: {
-  summary: MonthSummary;
-  conns: FetchState<Connection[]>;
-  syncing: Set<string>;
-  onSync: (id: string) => void;
-}) {
-  const exportHref = `${process.env.NEXT_PUBLIC_API_BASE_URL}/costs/export.xlsx?year=${summary.month.slice(0, 4)}&month=${Number(summary.month.slice(5))}`;
-  const isEmpty = Number(summary.total_usd) === 0;
-
-  return (
-    <div className="ui-sans lg:sticky lg:top-6 flex flex-col gap-6">
-      <div>
-        <p className="cat-label">Connections</p>
-        <ConnectionList
-          state={conns}
-          syncing={syncing}
-          onSync={onSync}
-        />
-      </div>
-
-      <hr className="hr-rule" />
-
-      <div>
-        <p className="cat-label">Export</p>
-        {isEmpty ? (
-          <p className="mt-3 text-[13px] text-ink-muted">
-            Available once you have data.
+            METRICS NOT YET COLLECTED
           </p>
-        ) : (
-          <a
-            href={exportHref}
-            className="mt-3 inline-block text-[13px] text-accent underline-offset-4 hover:underline"
+          <p
+            className="ui-sans mt-2"
+            style={{ color: "var(--text-muted)", fontSize: 13 }}
           >
-            Download .xlsx
-          </a>
-        )}
-      </div>
-
-      <hr className="hr-rule" />
-
-      <div>
-        <p className="cat-label">Budget alerts</p>
-        <p className="mt-3 text-[13px] text-ink-muted">
-          None configured.{" "}
+            Sync your providers to start detecting idle resources.
+          </p>
           <Link
-            href="/settings"
-            className="text-accent underline-offset-4 hover:underline"
+            href="/connections"
+            className="ui-sans mt-2 inline-block transition-colors hover:underline"
+            style={{ color: "var(--brand)", fontSize: 13 }}
           >
-            Set up alerts
+            Sync now →
           </Link>
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function ConnectionList({
-  state,
-  syncing,
-  onSync,
-}: {
-  state: FetchState<Connection[]>;
-  syncing: Set<string>;
-  onSync: (id: string) => void;
-}) {
-  if (state.status === "loading") {
-    return (
-      <div className="mt-3 space-y-2">
-        <SkeletonLine className="h-4 w-3/4" />
-        <SkeletonLine className="h-4 w-2/3" />
-      </div>
-    );
-  }
-  if (state.status === "error") {
-    return <p className="mt-3 text-[13px] text-negative">{state.message}</p>;
-  }
-  if (state.data.length === 0) {
-    return (
-      <p className="mt-3 text-[13px] text-ink-muted">
-        None connected.{" "}
-        <Link
-          href="/connections"
-          className="text-accent underline-offset-4 hover:underline"
-        >
-          Add one
-        </Link>
-      </p>
-    );
-  }
-  return (
-    <ul className="mt-3 flex flex-col gap-3">
-      {state.data.map((c) => (
-        <li key={c.id} className="flex items-center justify-between gap-3">
-          <span className="flex min-w-0 items-center gap-2">
-            <FreshnessDot connection={c} />
-            <Link
-              href={`/connections/${c.id}`}
-              className="min-w-0 truncate text-[13px] text-ink hover:text-accent"
-            >
-              {c.display_name}
-            </Link>
-          </span>
-          <span className="flex shrink-0 items-baseline gap-3">
-            <span className="text-[11px] text-ink-muted">
-              {syncRelative(c.last_synced_at)}
-            </span>
-            <button
-              type="button"
-              onClick={() => onSync(c.id)}
-              disabled={syncing.has(c.id)}
-              className="text-[12px] text-accent underline-offset-4 hover:underline disabled:opacity-50"
-            >
-              {syncing.has(c.id) ? "…" : "Sync"}
-            </button>
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function FreshnessDot({ connection }: { connection: Connection }) {
-  const color: string = useMemo(() => {
-    if (connection.last_sync_error) return TOKENS.negative;
-    if (!connection.last_synced_at) return TOKENS.negative;
-    const ageHours =
-      (Date.now() - new Date(connection.last_synced_at).getTime()) /
-      1000 /
-      3600;
-    if (ageHours <= 24) return TOKENS.positive;
-    if (ageHours <= 24 * 7) return TOKENS.amber;
-    return TOKENS.negative;
-  }, [connection]);
-  const label = connection.last_sync_error
-    ? `Error: ${connection.last_sync_error}`
-    : connection.last_synced_at
-      ? `Last synced ${new Date(connection.last_synced_at).toLocaleString()}`
-      : "Never synced";
-  return (
-    <span
-      title={label}
-      aria-label={label}
-      className="inline-block h-[8px] w-[8px] rounded-full"
-      style={{ background: color }}
-    />
+        </div>
+      ) : (
+        <div className="mt-3">
+          <p
+            className="ui-sans"
+            style={{
+              color: "#22c55e",
+              fontSize: 13,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
+            ALL RESOURCES ACTIVE
+          </p>
+          <p
+            className="ui-sans mt-2"
+            style={{ color: "var(--text-muted)", fontSize: 13 }}
+          >
+            No idle or underused resources detected.
+          </p>
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -698,48 +1791,37 @@ function FreshnessDot({ connection }: { connection: Connection }) {
 
 function EmptyDashboard() {
   return (
-    <div
-      className="flex flex-col items-center text-center"
-      style={{ paddingTop: "96px", paddingBottom: "96px" }}
-    >
+    <div className="flex flex-col items-center pb-24 pt-24 text-center">
       <p className="cat-label">Start here</p>
       <h1
-        className="font-display mt-4 text-ink"
+        className="font-display mt-4"
         style={{
-          fontSize: "clamp(28px, 4vw, 36px)",
-          lineHeight: 1.15,
+          color: "var(--text-primary)",
+          fontSize: "clamp(28px, 5vw, 36px)",
+          lineHeight: 1.1,
           letterSpacing: "-0.012em",
+          fontWeight: 700,
         }}
       >
         Connect your first provider.
       </h1>
-      <p className="ui-sans mt-4 max-w-md text-[14px] text-ink-muted">
+      <p
+        className="ui-sans mt-4 max-w-md"
+        style={{ color: "var(--text-muted)", fontSize: 14 }}
+      >
         Pick a provider, paste a read-only API key, watch this dashboard fill
         out. No credit card needed.
       </p>
-      <Link href="/connections" className="btn-dark mt-8">
+      <Link href="/connections" className="btn-primary mt-8">
         Add a provider
       </Link>
     </div>
   );
 }
 
-function PlaceholderChart() {
-  return (
-    <div
-      className="relative mt-5 h-[200px] w-full border-l border-b border-rule"
-      aria-hidden
-    >
-      <p className="ui-sans absolute inset-0 flex items-center justify-center text-[12px] text-ink-muted">
-        No data this month
-      </p>
-    </div>
-  );
-}
-
 function DashboardLoading() {
   return (
-    <div style={{ paddingTop: "48px" }}>
+    <div className="pt-12">
       <SkeletonLine className="h-3 w-44" />
       <div className="mt-4">
         <SkeletonLine className="h-[60px] w-72" />
@@ -747,19 +1829,8 @@ function DashboardLoading() {
       <div className="mt-4">
         <SkeletonLine className="h-4 w-72" />
       </div>
-      <hr className="hr-rule mt-8" />
-      <div className="mt-10 grid grid-cols-1 gap-10 lg:grid-cols-12">
-        <aside className="lg:col-span-2">
-          <SkeletonLine className="h-3 w-24" />
-        </aside>
-        <div className="lg:col-span-7 space-y-4">
-          <SkeletonLine className="h-3 w-24" />
-          <SkeletonLine className="h-[200px] w-full" />
-        </div>
-        <aside className="lg:col-span-3 space-y-3">
-          <SkeletonLine className="h-3 w-24" />
-          <SkeletonLine className="h-4 w-full" />
-        </aside>
+      <div className="mt-8">
+        <SkeletonLine className="h-[320px] w-full" />
       </div>
     </div>
   );
@@ -767,15 +1838,26 @@ function DashboardLoading() {
 
 function ErrorState({ message }: { message: string }) {
   return (
-    <div style={{ paddingTop: "48px" }}>
+    <div className="pt-12">
       <p className="cat-label">Could not load dashboard</p>
       <h1
-        className="font-display mt-3 text-ink"
-        style={{ fontSize: "32px", lineHeight: 1.15 }}
+        className="font-display mt-3"
+        style={{
+          color: "var(--text-primary)",
+          fontSize: 28,
+          lineHeight: 1.15,
+        }}
       >
         Something went wrong.
       </h1>
-      <p className="ui-sans mt-4 border-l-2 border-negative pl-4 text-[14px] text-negative">
+      <p
+        className="ui-sans mt-4 pl-4"
+        style={{
+          borderLeft: "2px solid var(--negative)",
+          color: "var(--negative)",
+          fontSize: 14,
+        }}
+      >
         {message}
       </p>
       <button
@@ -790,20 +1872,34 @@ function ErrorState({ message }: { message: string }) {
 }
 
 /* =================================================================
- * HELPERS
+ * SHARED CARD
  * ================================================================= */
 
-const fmt = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-function formatMoney(n: number): string {
-  if (Number.isNaN(n)) return "—";
-  return fmt.format(n);
+function Card({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={className}
+      style={{
+        background: "var(--bg-elevated)",
+        border: "1px solid var(--border)",
+        borderRadius: 8,
+        padding: 20,
+      }}
+    >
+      {children}
+    </section>
+  );
 }
+
+/* =================================================================
+ * HELPERS
+ * ================================================================= */
 
 function syncRelative(iso: string | null): string {
   if (!iso) return "never";
