@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://startupspend.cloud/sitemap.xml
